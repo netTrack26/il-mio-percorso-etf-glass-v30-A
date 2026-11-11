@@ -1,0 +1,1 @@
+import type {Metadata} from "next"; import "./globals.css"; export const metadata:Metadata={title:"Il Mio Percorso ETF | Glass Dashboard V30",description:"Dashboard dimostrativa per investimenti ETF"}; export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="it"><body>{children}</body></html>}
