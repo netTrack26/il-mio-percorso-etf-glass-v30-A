@@ -103,3 +103,13 @@ $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
 for each row execute procedure public.handle_new_user();
+
+-- Initial searchable catalog entries used by the demo portfolio.
+insert into public.etfs (isin,ticker,name,issuer)
+values
+ ('IE00BFMXXD54','VUAA','Vanguard S&P 500 UCITS ETF','Vanguard'),
+ ('IE00BK5BQT80','VWCE','Vanguard FTSE All-World UCITS ETF','Vanguard'),
+ ('IE00BDBRDM35','AGGH','iShares Core Global Aggregate Bond UCITS ETF','iShares'),
+ ('IE00B5BMR087','CSPX','iShares Core S&P 500 UCITS ETF','iShares'),
+ ('IE00BKM4GZ66','EIMI','iShares Core MSCI Emerging Markets IMI UCITS ETF','iShares')
+on conflict (isin) do update set ticker=excluded.ticker,name=excluded.name,issuer=excluded.issuer;
