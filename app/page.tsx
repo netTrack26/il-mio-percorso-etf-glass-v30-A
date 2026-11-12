@@ -10,7 +10,66 @@ const money=(n:number)=>n.toLocaleString("it-IT",{style:"currency",currency:"EUR
 const history:{d:string,v:number}[]=[];
 export default function Home(){
 const [section,S]=useState("Overview"),[mobile,M]=useState(false),[hidden,H]=useState(false),[query,Q]=useState(""),[selectedFund,SelectFund]=useState<Fund|null>(null),[funds,F]=useState(initial),[tx,T]=useState<{id:number,ticker:string,qty:number,price:number,fee:number,date:string}[]>([]),[modal,D]=useState(false),[ticker,K]=useState("VUAA"),[qty,Y]=useState("1"),[price,Z]=useState("127.50"),[fee,E]=useState("6.50"),[toast,B]=useState(""),[authOpen,AuthOpen]=useState(false),[email,Email]=useState(""),[password,Password]=useState(""),[userEmail,UserEmail]=useState<string|null>(null),[authBusy,AuthBusy]=useState(false),[authMode,AuthMode]=useState<"login"|"signup">("login"),[cloudReady,CloudReady]=useState(false),[extraFunds,ExtraFunds]=useState<Fund[]>([]),[newEtfOpen,NewEtfOpen]=useState(false),[newTicker,NewTicker]=useState(""),[newIsin,NewIsin]=useState(""),[newName,NewName]=useState(""),[newIssuer,NewIssuer]=useState("");
-useEffect(()=>{localStorage.removeItem("glass-etf-funds");localStorage.removeItem("glass-etf-tx");F([]);T([]); const supabase=getSupabaseBrowserClient();if(!supabase)return;let active=true;const loadCloud=async()=>{const {data:{user}}=await supabase.auth.getUser();if(!active||!user)return;const [{data,error},{data:etfRows,error:etfError}]=await Promise.all([supabase.from("portfolio_transactions").select("id,isin,transaction_type,quantity,unit_price,fees,executed_at,etfs(ticker,name)").eq("user_id",user.id).order("executed_at",{ascending:false}),supabase.from("etfs").select("isin,ticker,name,issuer").order("ticker")]);if(!active)return;if(error){B("Accesso cloud attivo, ma lettura portafoglio non riuscita");return;}if(!etfError)ExtraFunds((etfRows||[]).map((x:any)=>({ticker:x.ticker||x.isin,name:x.name,isin:x.isin,qty:0,avg:0,price:0,change:0})));const rows:any[]=data||[];const grouped=new Map<string,Fund>();const cloudTx:any[]=[];for(const row of rows){const etf=Array.isArray(row.etfs)?row.etfs[0]:row.etfs;if(!etf?.ticker)continue;const ticker=String(etf.ticker);const q=Number(row.quantity)||0,p=Number(row.unit_price)||0,fees=Number(row.fees)||0;cloudTx.push({id:row.id,ticker,qty:q,price:p,fee:fees,date:new Date(row.executed_at).toLocaleDateString("it-IT")});const current=grouped.get(ticker)||{ticker,name:etf.name||ticker,isin:row.isin,qty:0,avg:0,price:p,change:0};if(row.transaction_type==="buy"){const nextQty=current.qty+q;current.avg=nextQty>0?(current.avg*current.qty+q*p+fees)/nextQty:0;current.qty=nextQty;current.price=p;}else if(row.transaction_type==="sell"){current.qty=Math.max(0,current.qty-q);current.price=p;}grouped.set(ticker,current);}F([...grouped.values()].filter(x=>x.qty>0));T(cloudTx);CloudReady(true);};supabase.auth.getSession().then(async(result:any)=>{const session=result.data.session;UserEmail(session?.user.email??null);if(session)await loadCloud();else CloudReady(false);});const {data:{subscription}}=supabase.auth.onAuthStateChange(async(_event:any,session:any)=>{UserEmail(session?.user.email??null);if(session)await loadCloud();else{CloudReady(false);F(initial);T([]);}});return()=>{active=false;subscription.unsubscribe();};},[]);
+useEffect(()=>{
+ const supabase=getSupabaseBrowserClient();
+ if(!supabase){CloudReady(true);return;}
+ let active=true;
+ const loadCloud=async()=>{
+  const {data:{user},error:userError}=await supabase.auth.getUser();
+  if(!active)return;
+  if(userError){B("Impossibile verificare la sessione Supabase: "+userError.message);CloudReady(false);return;}
+  if(!user){F([]);T([]);ExtraFunds([]);CloudReady(true);return;}
+  const [{data:rows,error:txError},{data:etfRows,error:etfError}]=await Promise.all([
+   supabase.from("portfolio_transactions").select("id,isin,transaction_type,quantity,unit_price,fees,currency,executed_at,notes,etfs(ticker,name)").eq("user_id",user.id).order("executed_at",{ascending:true}).order("created_at",{ascending:true}),
+   supabase.from("etfs").select("isin,ticker,name,issuer").order("ticker")
+  ]);
+  if(!active)return;
+  if(txError){B("Lettura movimenti Supabase non riuscita: "+txError.message);CloudReady(false);return;}
+  if(etfError){B("Lettura catalogo ETF non riuscita: "+etfError.message);CloudReady(false);return;}
+  ExtraFunds((etfRows||[]).map((x:any)=>({ticker:x.ticker||x.isin,name:x.name||x.isin,isin:x.isin,qty:0,avg:0,price:0,change:0})));
+  const grouped=new Map<string,Fund>();
+  const cloudTx=(rows||[]).map((row:any)=>{
+   const relation=Array.isArray(row.etfs)?row.etfs[0]:row.etfs;
+   const ticker=String(relation?.ticker||row.isin);
+   const name=String(relation?.name||ticker);
+   const q=Number(row.quantity)||0;
+   const p=Number(row.unit_price)||0;
+   const fees=Number(row.fees)||0;
+   const type=String(row.transaction_type);
+   const current=grouped.get(ticker)||{ticker,name,isin:row.isin,qty:0,avg:0,price:p,change:0};
+   if(type==="buy"&&q>0){
+    const nextQty=current.qty+q;
+    current.avg=(current.avg*current.qty+q*p+fees)/nextQty;
+    current.qty=nextQty;
+    current.price=p;
+   }else if(type==="sell"&&q>0){
+    current.qty=Math.max(0,current.qty-q);
+    if(current.qty===0)current.avg=0;
+    current.price=p;
+   }
+   grouped.set(ticker,current);
+   return {id:row.id,ticker,qty:q,price:p,fee:fees,date:new Date(row.executed_at).toLocaleDateString("it-IT"),type};
+  });
+  if(!active)return;
+  F([...grouped.values()].filter(x=>x.qty>0));
+  T(cloudTx as any);
+  CloudReady(true);
+ };
+ supabase.auth.getSession().then(async(result:any)=>{
+  if(!active)return;
+  const session=result.data.session;
+  UserEmail(session?.user.email??null);
+  if(session)await loadCloud();
+  else{F([]);T([]);ExtraFunds([]);CloudReady(true);}
+ });
+ const {data:{subscription}}=supabase.auth.onAuthStateChange((_event:any,session:any)=>{
+  UserEmail(session?.user.email??null);
+  if(!session){F([]);T([]);ExtraFunds([]);CloudReady(true);return;}
+  CloudReady(false);
+  void loadCloud();
+ });
+ return()=>{active=false;subscription.unsubscribe();};
+},[]);
 const allCatalog=[...catalog,...extraFunds.filter(x=>!catalog.some(y=>y.isin===x.isin))];const total=funds.reduce((s,p)=>s+p.qty*p.price,0),invested=funds.reduce((s,p)=>s+p.qty*p.avg,0),profit=total-invested,fmt=(n:number)=>hidden?"••••••":money(n);
 const nav=[["Overview",LayoutDashboard],["Portafoglio",Wallet],["Esplora ETF",Search],["Watchlist",Star],["PAC",Activity],["Analisi",ChartNoAxesCombined],["Transazioni",FileSpreadsheet]] as const;
 async function save(){
