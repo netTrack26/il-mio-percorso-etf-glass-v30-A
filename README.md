@@ -33,3 +33,18 @@ on conflict (user_id) do update set role = 'admin';
 ```
 
 La tabella dei ruoli non è accessibile direttamente dal browser. Le funzioni amministrative verificano il ruolo nel database e negano l'accesso agli utenti normali. Non assegnare il ruolo admin ad altri account se non sono amministratori fidati.
+
+
+## Area amministratore completa — aggiornamento 003
+Dopo aver già applicato le migrazioni 001 e 002 e assegnato il ruolo proprietario, esegui una sola volta `supabase/migrations/003_admin_management.sql` nel SQL Editor di Supabase.
+
+La migrazione aggiunge:
+- statistiche e grafico iscrizioni giornaliere;
+- ricerca utenti e funzioni protette per sospendere/riattivare account e cambiare ruolo;
+- gestione del catalogo ETF tramite funzioni amministrative, con protezione contro la cancellazione di ETF già usati da portafogli, PAC o watchlist;
+- impostazioni di presentazione Premium;
+- blocco tramite Row Level Security dell'accesso ai dati personali agli account sospesi.
+
+Le operazioni amministrative sono funzioni SQL `SECURITY DEFINER` che verificano il ruolo admin nel database. Non richiedono né espongono la service-role key nel browser. La sospensione non cancella account, transazioni o posizioni.
+
+Premium resta una predisposizione di prodotto: questa versione non gestisce pagamenti, abbonamenti, fatture o concessione automatica di privilegi Premium. Prima di distribuire dati ETF agli utenti occorre verificare la licenza commerciale del provider.
