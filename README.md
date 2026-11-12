@@ -28,7 +28,7 @@ La migrazione crea profili, catalogo ETF, transazioni, piani PAC e watchlist. Le
 insert into public.user_roles (user_id, role)
 select id, 'admin'
 from auth.users
-where lower(email) = lower('TUA_EMAIL_DI_ACCESSO')
+where lower(email) = lower('memu86@hotmail.it')
 on conflict (user_id) do update set role = 'admin';
 ```
 
