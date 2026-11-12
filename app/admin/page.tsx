@@ -23,22 +23,40 @@ export default function AdminPage(){
  const [editing,setEditing]=useState(false),[premiumEnabled,setPremiumEnabled]=useState(false),[premiumLabel,setPremiumLabel]=useState("In arrivo"),[premiumDescription,setPremiumDescription]=useState("Funzioni avanzate in preparazione");
 
  const load=useCallback(async()=>{
+   try {
    const sb=getSupabaseBrowserClient(); if(!sb){setError("Connessione Supabase non configurata.");setLoading(false);return;}
    const {data:{user},error:authError}=await sb.auth.getUser();
    if(authError||!user){setError("Accedi con il tuo account amministratore.");setLoading(false);return;}
    setEmail(user.email||"");
    const {data:result,error:rpcError}=await sb.rpc("admin_dashboard_data");
    if(rpcError){setError(rpcError.code==="42501"?"Il tuo account non dispone dei privilegi amministratore.":"Non riesco a leggere la dashboard. Verifica di aver eseguito la migrazione 003_admin_management.sql. "+rpcError.message);setLoading(false);return;}
-   const d=result as Dashboard; setData(d);setPremiumEnabled(!!d.premium?.enabled);setPremiumLabel(d.premium?.label||"In arrivo");setPremiumDescription(d.premium?.description||"Funzioni avanzate in preparazione");setError("");setLoading(false);
+   const raw=(result&&typeof result==="object"?result:{}) as Partial<Dashboard>;
+   const d:Dashboard={
+    total_users:Number(raw.total_users)||0,
+    new_users_7d:Number(raw.new_users_7d)||0,
+    new_users_30d:Number(raw.new_users_30d)||0,
+    active_users:Number(raw.active_users)||0,
+    suspended_users:Number(raw.suspended_users)||0,
+    users:Array.isArray(raw.users)?raw.users:[],
+    catalog:Array.isArray(raw.catalog)?raw.catalog:[],
+    signups_30d:Array.isArray(raw.signups_30d)?raw.signups_30d:[],
+    premium:raw.premium&&typeof raw.premium==="object"?raw.premium:{enabled:false,label:"In arrivo",description:"Funzioni avanzate in preparazione"}
+   };
+   setData(d);setPremiumEnabled(!!d.premium.enabled);setPremiumLabel(d.premium.label||"In arrivo");setPremiumDescription(d.premium.description||"Funzioni avanzate in preparazione");setError("");setLoading(false);
+   } catch(e) { setError("Errore durante il caricamento: "+errText(e));setLoading(false); }
  },[]);
  useEffect(()=>{void load();},[load]);
 
- const filtered=useMemo(()=>data?.users.filter(u=>(u.email+" "+u.display_name).toLowerCase().includes(search.toLowerCase()))||[],[data,search]);
+ const filtered=useMemo(()=>Array.isArray(data?.users)?data!.users.filter(u=>((u?.email||"")+" "+(u?.display_name||"")).toLowerCase().includes(search.toLowerCase())):[],[data,search]);
  const action=async(fn:string,args:Record<string,any>,success:string)=>{
-   const sb=getSupabaseBrowserClient();if(!sb)return;
-   setBusy(true);setNotice("");const {error:e}=await sb.rpc(fn,args);setBusy(false);
-   if(e){setNotice("Errore: "+errText(e));return;}
-   setNotice(success);await load();
+   const sb=getSupabaseBrowserClient();if(!sb){setNotice("Errore: connessione Supabase non disponibile.");return;}
+   setBusy(true);setNotice("");
+   try {
+    const {error:e}=await sb.rpc(fn,args);
+    if(e){setNotice("Errore: "+errText(e));return;}
+    setNotice(success);await load();
+   } catch(e) { setNotice("Errore: "+errText(e)); }
+   finally { setBusy(false); }
  };
  const saveETF=async()=>{
    if(!etf.isin||!etf.ticker||!etf.name){setNotice("Inserisci ISIN, ticker e nome.");return;}
@@ -49,7 +67,9 @@ export default function AdminPage(){
  };
  const savePremium=async()=>action("admin_set_premium",{p_enabled:premiumEnabled,p_label:premiumLabel,p_description:premiumDescription},"Impostazioni Premium salvate.");
 
- const maxSignup=Math.max(1,...(data?.signups_30d||[]).map(x=>x.count));
+ const signupDays=Array.isArray(data?.signups_30d)?data!.signups_30d:[];
+ const catalogItems=Array.isArray(data?.catalog)?data!.catalog:[];
+ const maxSignup=Math.max(1,...signupDays.map(x=>Number(x?.count)||0));
  return <main style={{minHeight:"100vh",padding:"26px clamp(14px,4vw,54px)",background:"radial-gradient(ellipse at 50% -15%,#45464d,#191a1f 58%,#101115)",color:"#f4f4f5",fontFamily:"Arial,sans-serif"}}>
   <div style={{maxWidth:1400,margin:"0 auto"}}>
    <header style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:14,flexWrap:"wrap",marginBottom:24}}>
@@ -65,12 +85,12 @@ export default function AdminPage(){
     </nav>
     {tab==="overview"&&<>
      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:12,marginBottom:15}}>
-      <Kpi label="Utenti iscritti" value={data.total_users}/><Kpi label="Nuovi · 7 giorni" value={data.new_users_7d}/><Kpi label="Nuovi · 30 giorni" value={data.new_users_30d}/><Kpi label="Account attivi" value={data.active_users}/><Kpi label="Account sospesi" value={data.suspended_users}/><Kpi label="ETF in catalogo" value={data.catalog.length}/>
+      <Kpi label="Utenti iscritti" value={data.total_users}/><Kpi label="Nuovi · 7 giorni" value={data.new_users_7d}/><Kpi label="Nuovi · 30 giorni" value={data.new_users_30d}/><Kpi label="Account attivi" value={data.active_users}/><Kpi label="Account sospesi" value={data.suspended_users}/><Kpi label="ETF in catalogo" value={catalogItems.length}/>
      </div>
      <section style={panel}><h2 style={{fontSize:16,margin:"0 0 4px"}}>Nuove iscrizioni · ultimi 30 giorni</h2><p style={{fontSize:11,color:"#a5a6ad",margin:"0 0 18px"}}>Registrazioni giornaliere effettive da Supabase</p>
       <div style={{height:170,display:"flex",alignItems:"end",gap:3,overflowX:"auto",paddingBottom:5}}>
-       {data.signups_30d.map(d=><div key={d.day} title={new Date(d.day).toLocaleDateString("it-IT")+": "+d.count} style={{height:"100%",minWidth:7,flex:"1 0 7px",display:"flex",alignItems:"end"}}><div style={{width:"100%",height:Math.max(d.count?7:2,d.count/maxSignup*100)+"%",borderRadius:"4px 4px 1px 1px",background:d.count?"linear-gradient(180deg,#d7ff91,#8dc83d)":"#ffffff18"}}/></div>)}
-      </div><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#999ba3"}}><span>{data.signups_30d[0]?.day}</span><span>{data.signups_30d[data.signups_30d.length-1]?.day}</span></div>
+       {signupDays.map(d=><div key={d.day} title={new Date(d.day).toLocaleDateString("it-IT")+": "+d.count} style={{height:"100%",minWidth:7,flex:"1 0 7px",display:"flex",alignItems:"end"}}><div style={{width:"100%",height:Math.max(d.count?7:2,d.count/maxSignup*100)+"%",borderRadius:"4px 4px 1px 1px",background:d.count?"linear-gradient(180deg,#d7ff91,#8dc83d)":"#ffffff18"}}/></div>)}
+      </div><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#999ba3"}}><span>{signupDays[0]?.day}</span><span>{signupDays[signupDays.length-1]?.day}</span></div>
      </section>
      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12,marginTop:14}}>
       <section style={panel}><h3 style={{margin:"0 0 8px",fontSize:14}}>Gestione utenti</h3><p style={{fontSize:12,color:"#a5a6ad"}}>Cerca iscritti, cambia ruolo e gestisci gli account sospesi.</p><button style={button(true)} onClick={()=>setTab("users")}>Apri utenti →</button></section>
@@ -90,7 +110,7 @@ export default function AdminPage(){
       {[["ISIN","isin"],["Ticker","ticker"],["Nome ETF","name"],["Emittente","issuer"],["Valuta","currency"],["TER (%)","ongoing_charges"]].map(([label,key])=><label key={key} style={{display:"block",fontSize:11,color:"#bfc0c6",marginTop:12}}>{label}<input style={{...field,marginTop:6}} value={String((etf as any)[key]??"")} onChange={e=>setEtf(v=>({...v,[key]:key==="ongoing_charges"?(e.target.value===""?null:Number(e.target.value)):key==="isin"||key==="ticker"?e.target.value.toUpperCase():e.target.value}))} disabled={editing&&key==="isin"} /></label>)}
       <div style={{display:"flex",gap:8,marginTop:16}}><button disabled={busy} style={button(true)} onClick={()=>void saveETF()}>{busy?"Salvataggio…":"Salva ETF"}</button>{editing&&<button style={button()} onClick={()=>{setEditing(false);setEtf({isin:"",ticker:"",name:"",issuer:"",currency:"EUR",ongoing_charges:null});}}>Annulla</button>}</div>
      </section>
-     <section style={panel}><h2 style={{fontSize:17,margin:"0 0 12px"}}>ETF presenti · {data.catalog.length}</h2><div style={{maxHeight:620,overflowY:"auto"}}>{data.catalog.map(x=><div key={x.isin} style={{padding:"12px 0",borderBottom:"1px solid #ffffff17",display:"flex",gap:8,alignItems:"center"}}><div style={{flex:1,minWidth:0}}><b style={{fontSize:12}}>{x.ticker||x.isin}</b><div style={{fontSize:10,color:"#a5a6ad",overflowWrap:"anywhere"}}>{x.name} · {x.isin}</div></div><button style={button()} onClick={()=>{setEtf(x);setEditing(true);window.scrollTo({top:0,behavior:"smooth"});}}>Modifica</button><button style={{...button(),color:"#ffaaaa"}} onClick={()=>{if(confirm("Eliminare "+x.ticker+" dal catalogo? Se è già usato da utenti il database impedirà la cancellazione."))void action("admin_delete_etf",{p_isin:x.isin},"ETF eliminato.");}}>Elimina</button></div>)}</div></section>
+     <section style={panel}><h2 style={{fontSize:17,margin:"0 0 12px"}}>ETF presenti · {data.catalog.length}</h2><div style={{maxHeight:620,overflowY:"auto"}}>{catalogItems.map(x=><div key={x.isin} style={{padding:"12px 0",borderBottom:"1px solid #ffffff17",display:"flex",gap:8,alignItems:"center"}}><div style={{flex:1,minWidth:0}}><b style={{fontSize:12}}>{x.ticker||x.isin}</b><div style={{fontSize:10,color:"#a5a6ad",overflowWrap:"anywhere"}}>{x.name} · {x.isin}</div></div><button style={button()} onClick={()=>{setEtf(x);setEditing(true);window.scrollTo({top:0,behavior:"smooth"});}}>Modifica</button><button style={{...button(),color:"#ffaaaa"}} onClick={()=>{if(confirm("Eliminare "+x.ticker+" dal catalogo? Se è già usato da utenti il database impedirà la cancellazione."))void action("admin_delete_etf",{p_isin:x.isin},"ETF eliminato.");}}>Elimina</button></div>)}</div></section>
     </div>}
     {tab==="premium"&&<section style={{...panel,maxWidth:760}}><div style={{color:"#cfff80",fontSize:10,letterSpacing:1.5,fontWeight:700}}>LIVELLO PREMIUM</div><h2 style={{fontSize:20,margin:"9px 0 6px"}}>Preparazione del servizio</h2><p style={{fontSize:12,color:"#a5a6ad",lineHeight:1.7}}>Puoi preparare la presentazione del servizio. Questa impostazione non crea abbonamenti, non incassa pagamenti e non assegna automaticamente vantaggi agli utenti.</p>
      <label style={{display:"flex",gap:10,alignItems:"center",margin:"18px 0",fontSize:13}}><input type="checkbox" checked={premiumEnabled} onChange={e=>setPremiumEnabled(e.target.checked)}/> Mostra Premium come disponibile nella piattaforma</label>
