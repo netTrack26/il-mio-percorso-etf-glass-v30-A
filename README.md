@@ -18,3 +18,18 @@ La migrazione crea profili, catalogo ETF, transazioni, piani PAC e watchlist. Le
 - Le quotazioni di mercato richiedono un provider e i relativi diritti/API key.
 - Non inserire mai una service-role key nel browser o in variabili `NEXT_PUBLIC_*`.
 - La sincronizzazione cloud e l'autenticazione verranno collegate dopo la configurazione del progetto Supabase.
+
+
+## Area amministratore — attivazione iniziale
+1. Dopo la migrazione iniziale, esegui anche `supabase/migrations/002_admin_foundation.sql` dal SQL Editor di Supabase.
+2. Per assegnare il ruolo amministratore al tuo account già registrato, sostituisci l'indirizzo qui sotto con la stessa email usata per accedere alla piattaforma ed esegui una sola volta:
+
+```sql
+insert into public.user_roles (user_id, role)
+select id, 'admin'
+from auth.users
+where lower(email) = lower('TUA_EMAIL_DI_ACCESSO')
+on conflict (user_id) do update set role = 'admin';
+```
+
+La tabella dei ruoli non è accessibile direttamente dal browser. Le funzioni amministrative verificano il ruolo nel database e negano l'accesso agli utenti normali. Non assegnare il ruolo admin ad altri account se non sono amministratori fidati.
