@@ -80,7 +80,7 @@ useEffect(()=>{
  return()=>{active=false;subscription.unsubscribe();};
 },[]);
 const allCatalog=[...catalog,...extraFunds.filter(x=>!catalog.some(y=>y.isin===x.isin))];const total=funds.reduce((s,p)=>s+p.qty*p.price,0),invested=funds.reduce((s,p)=>s+p.qty*p.avg,0),profit=total-invested,fmt=(n:number)=>hidden?"••••••":money(n);
-const nav=[["Overview",LayoutDashboard],["Portafoglio",Wallet],["Esplora ETF",Search],["Watchlist",Star],["PAC",Activity],["Analisi",ChartNoAxesCombined],["Transazioni",FileSpreadsheet],["Premium",Crown]] as const;
+const nav=[["Overview",LayoutDashboard],["Portafoglio",Wallet],["PAC",Activity],["Analisi",ChartNoAxesCombined],["Premium",Crown]] as const;
 async function toggleWatchlist(isin:string){
  const sb=getSupabaseBrowserClient();if(!sb||!userEmail){B("Accedi per gestire la watchlist.");return;}
  const {data:{user}}=await sb.auth.getUser();if(!user)return;
@@ -164,7 +164,7 @@ async function searchEtfByIsin(){const isin=newIsin.trim().toUpperCase();if(!/^[
 async function addEtf(){const isin=newIsin.trim().toUpperCase(),ticker=newTicker.trim().toUpperCase(),name=newName.trim();if(!isin||!ticker||!name)return;const sb=getSupabaseBrowserClient();if(!sb||!userEmail){B("Accedi per aggiungere ETF al catalogo.");return;}const {data:{user}}=await sb.auth.getUser();const {error}=await sb.from("etfs").insert({isin,ticker,name,issuer:newIssuer.trim()||null});if(error){B(error.code==="23505"?"Questo ISIN è già presente nel catalogo.":"Impossibile aggiungere l’ETF: "+error.message);return;}ExtraFunds(old=>[...old,{ticker,name,isin,qty:0,avg:0,price:0,change:0}]);K(ticker);NewEtfOpen(false);NewTicker("");NewIsin("");NewName("");NewIssuer("");IsinSearchMessage("");B("ETF aggiunto. Ora puoi registrare il tuo acquisto.");setTimeout(()=>B(""),4000)}
 const results=allCatalog.filter(x=>(x.ticker+x.name+x.isin).toLowerCase().includes(query.toLowerCase()));
 return <main className="shell"><aside className={"sidebar "+(mobile?"open":"")}><div className="brand"><div className="mark">✳</div><div className="brandcopy"><b>IL MIO PERCORSO ETF</b><small>INVESTIMENTI INTELLIGENTI</small></div><button className="close" onClick={()=>M(false)}><X/></button></div><div className="side-label">WORKSPACE</div><nav>{nav.map(([label,Icon])=><button key={label} className={"nav "+(section===label?"active":"")} onClick={()=>{S(label);M(false)}}><Icon size={19}/><span>{label}</span></button>)}</nav><div className="push"/><button className="nav"><Settings size={19}/><span>Impostazioni</span></button>{userEmail?.toLowerCase()==="memu86@hotmail.it"&&<a className="nav" href="/admin" style={{textDecoration:"none"}}><ShieldCheck size={19}/><span>Amministratore</span></a>}<div className="user"><div className="avatar">{userEmail?userEmail[0].toUpperCase():"M"}</div><div><b>{userEmail||"Modalità demo"}</b><small>{userEmail?"Account Supabase":"Account locale"}</small></div></div></aside>
-<section className="main"><header className="top"><button className="icon mobilemenu" onClick={()=>M(true)}><Menu/></button><div className="tabs">{["Overview","Portafoglio","ETF","Analisi","Simulatori"].map(x=><button key={x} className={(x===section||(x==="ETF"&&section==="Esplora ETF")||(x==="Simulatori"&&section==="PAC"))?"sel":""} onClick={()=>S(x==="ETF"?"Esplora ETF":x==="Simulatori"?"PAC":x)}>{x}</button>)}</div><div className="actions"><span className="market"><i/> DEMO MODE</span><button className="icon" onClick={()=>H(!hidden)}>{hidden?<EyeOff/>:<Eye/>}</button><button className="icon"><Bell/></button><button className="auth-trigger" onClick={()=>AuthOpen(true)}>{userEmail?"Account":"Accedi"}</button><div className="avatar small">{userEmail?userEmail[0].toUpperCase():"M"}</div></div></header>
+<section className="main"><header className="top"><button className="icon mobilemenu" onClick={()=>M(true)}><Menu/></button><div className="tabs">{["Overview","Portafoglio","Analisi","Simulatori"].map(x=><button key={x} className={(x===section||(x==="ETF"&&section==="Esplora ETF")||(x==="Simulatori"&&section==="PAC"))?"sel":""} onClick={()=>S(x==="ETF"?"Esplora ETF":x==="Simulatori"?"PAC":x)}>{x}</button>)}</div><div className="actions"><span className="market"><i/> DEMO MODE</span><button className="icon" onClick={()=>H(!hidden)}>{hidden?<EyeOff/>:<Eye/>}</button><button className="icon"><Bell/></button><button className="auth-trigger" onClick={()=>AuthOpen(true)}>{userEmail?"Account":"Accedi"}</button><div className="avatar small">{userEmail?userEmail[0].toUpperCase():"M"}</div></div></header>
 <div className="content"><div className="heading"><div><div className="eyebrow">{new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).toUpperCase()}</div><h1>{section==="Overview"?"Bentornato nel tuo percorso.":section}</h1><p>Una visione chiara dei tuoi investimenti, un passo alla volta.</p></div><button className="primary" onClick={()=>D(true)}><Plus size={16}/> Registra acquisto</button></div>
 {section === "Overview" && (
   <>
@@ -212,9 +212,9 @@ return <main className="shell"><aside className={"sidebar "+(mobile?"open":"")}>
         <h2>Azioni rapide</h2>
         <div className="quick">
           <button onClick={() => D(true)}><Plus />Aggiungi acquisto</button>
-          <button onClick={() => S("Esplora ETF")}><Search />Cerca ETF</button>
+          <button onClick={() => S("PAC")}><Search />Ottimizza PAC</button>
           <button onClick={() => S("PAC")}><Activity />Piano PAC</button>
-          <button onClick={() => S("Transazioni")}><FileSpreadsheet />Movimenti</button>
+          <button onClick={() => S("Analisi")}><ChartNoAxesCombined />Analisi portafoglio</button>
         </div>
         <div className="insight"><b>Il tuo percorso, un passo alla volta.</b><p>La costanza nel tempo conta più delle oscillazioni di breve periodo.</p></div>
       </section>
