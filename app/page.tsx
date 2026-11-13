@@ -81,7 +81,6 @@ useEffect(()=>{
  return()=>{active=false;subscription.unsubscribe();};
 },[]);
 useEffect(()=>{
- useEffect(()=>{
  if(!userEmail||funds.length===0){MarketHistory([]);MarketHistoryStatus("idle");MarketHistoryError("");return;}
  let cancelled=false;
  const loadMarketHistory=async()=>{
@@ -97,6 +96,7 @@ useEffect(()=>{
  void loadMarketHistory();
  return()=>{cancelled=true;};
 },[userEmail,funds.map(p=>p.isin+":"+p.qty).join("|")]);
+useEffect(()=>{
 const q=pacSearch.trim();
  if(q.length<2){PacResults([]);PacSearchError("");PacSearchBusy(false);return;}
  let cancelled=false;
