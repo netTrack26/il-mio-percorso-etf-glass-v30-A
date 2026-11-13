@@ -46,7 +46,7 @@ useEffect(()=>{
    const p=Number(row.unit_price)||0;
    const fees=Number(row.fees)||0;
    const type=String(row.transaction_type);
-   const current=grouped.get(ticker)||{ticker,name,isin:row.isin,qty:0,avg:0,price:p,change:0};
+   const current=grouped.get(String(row.isin))||{ticker,name,isin:String(row.isin),qty:0,avg:0,price:p,change:0};
    if(type==="buy"&&q>0){
     const nextQty=current.qty+q;
     current.avg=(current.avg*current.qty+q*p+fees)/nextQty;
@@ -57,7 +57,7 @@ useEffect(()=>{
     if(current.qty===0)current.avg=0;
     current.price=p;
    }
-   grouped.set(ticker,current);
+   grouped.set(String(row.isin),current);
    return {id:row.id,isin:String(row.isin||""),ticker,qty:q,price:p,fee:fees,date:new Date(row.executed_at).toLocaleDateString("it-IT"),timestamp:new Date(row.executed_at).getTime(),type};
   });
   if(!active)return;
@@ -193,13 +193,16 @@ async function save(){
  const {data:etf,error:etfError}=await sb.from("etfs").select("isin,ticker,name").eq("isin",purchaseIsin.trim().toUpperCase()).maybeSingle();
  if(etfError){B("Errore nella ricerca ETF su Supabase: "+etfError.message);return;}
  if(!etf){B("ETF non trovato nel catalogo cloud. Aggiungilo prima dalla sezione ETF.");return;}
+ const {error:unhideError}=await sb.from("portfolio_hidden_positions").delete().eq("user_id",user.id).eq("isin",etf.isin);
+ if(unhideError){B("Impossibile riattivare la posizione ETF: "+unhideError.message);return;}
  const {error}=await sb.from("portfolio_transactions").insert({user_id:user.id,isin:etf.isin,transaction_type:"buy",quantity:n,unit_price:v,fees:c,currency:"EUR"});
  if(error){B("Salvataggio cloud non riuscito: "+error.message);return;}
- const old=funds.find(x=>x.ticker===etf.ticker);
+ HiddenPositions(old=>old.filter(isin=>isin!==etf.isin));
+ const old=funds.find(x=>x.isin===etf.isin);
  const base=old||{ticker:etf.ticker,name:etf.name||etf.ticker,isin:etf.isin,qty:0,avg:0,price:v,change:0};
  const nextQty=base.qty+n;
  const next={...base,qty:nextQty,avg:(base.qty*base.avg+n*v+c)/nextQty,price:v};
- F([...funds.filter(x=>x.ticker!==etf.ticker),next]);
+ F([...funds.filter(x=>x.isin!==etf.isin),next]);
  const item={id:Date.now(),isin:etf.isin,ticker:etf.ticker,qty:n,price:v,fee:c,date:new Date().toLocaleDateString("it-IT"),timestamp:Date.now(),type:"buy"};
  T([item,...tx]);
  D(false);
