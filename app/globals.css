@@ -209,3 +209,27 @@
 .portfolio-evolution-empty{height:100%;display:grid;place-items:center;padding:22px;text-align:center;border:1px dashed #baf35e28;border-radius:12px;color:#aeb7b2;font-size:11px;line-height:1.7;background:linear-gradient(180deg,#baf35e08,transparent)}
 .portfolio-evolution-note{padding-top:12px;border-top:1px solid #baf35e1b;color:#969f98;font-size:9px;line-height:1.7}
 @media(max-width:700px){.portfolio-evolution{padding:16px}.portfolio-evolution-head h2{font-size:17px}.portfolio-evolution-badge{font-size:7px;padding:6px 7px}.portfolio-evolution-chart{height:215px}.portfolio-evolution-value b{font-size:22px}}
+
+/* Market-driven portfolio line chart */
+.market-line-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;position:relative;z-index:1}
+.market-line-heading h2{font:800 clamp(18px,2vw,24px) Manrope,sans-serif;letter-spacing:-.6px;margin:8px 0 5px}
+.market-line-heading p{font-size:10px;color:#aeb7b2;margin:0;line-height:1.6}
+.market-line-status{flex:none;padding:7px 9px;border:1px solid #ffffff24;border-radius:30px;background:#ffffff08;color:#aeb0b7;font-size:8px;letter-spacing:.7px}
+.market-line-status.positive{border-color:#baf35e45;background:#baf35e0e;color:#d9ffab}
+.market-line-summary{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:18px 0 8px;padding:14px 16px;border:1px solid #baf35e25;border-radius:13px;background:linear-gradient(100deg,#baf35e12,#ffffff05)}
+.market-line-summary>div:first-child{display:grid;gap:5px}
+.market-line-summary small{font-size:8px;letter-spacing:1.2px;color:#aeb9a6}
+.market-line-summary>div:first-child b{font:800 clamp(22px,3vw,30px) Manrope;color:#e1ffad;text-shadow:0 0 18px #baf35e40}
+.market-line-meta{font-size:8px;color:#a9b8a2;letter-spacing:.8px}
+.market-line-change{display:grid;gap:4px;text-align:right}
+.market-line-change b{font:800 20px Manrope}
+.market-line-change.up b{color:#caff7d;text-shadow:0 0 15px #baf35e55}
+.market-line-change.down b{color:#ff8a8a;text-shadow:0 0 15px #ff777755}
+.market-line-change small{font-size:8px;color:#aeb0b7}
+.market-line-chart{position:relative;z-index:1;height:260px;min-width:0;margin-top:8px}
+.market-line-message{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:20px;text-align:center;border:1px dashed #baf35e28;border-radius:12px;background:linear-gradient(180deg,#baf35e08,transparent);color:#aeb7b2;font-size:11px;line-height:1.7}
+.market-line-error b{color:#ffaaaa;font-size:12px}
+.market-line-error span{max-width:520px}
+.market-line-footer{position:relative;z-index:1;display:flex;justify-content:space-between;gap:12px;padding-top:12px;border-top:1px solid #baf35e1b;color:#969f98;font-size:8px;line-height:1.6}
+.market-line-footer span:first-child{color:#d6f8a5;letter-spacing:.7px;white-space:nowrap}
+@media(max-width:700px){.market-line-heading{align-items:flex-start}.market-line-heading h2{font-size:18px}.market-line-status{font-size:7px;padding:6px 7px}.market-line-summary{padding:12px}.market-line-chart{height:230px}.market-line-footer{font-size:7px}.market-line-footer span:last-child{text-align:right}}
