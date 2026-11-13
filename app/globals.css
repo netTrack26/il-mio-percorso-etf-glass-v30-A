@@ -251,3 +251,10 @@
 .fire-world img{display:block;width:100%;height:auto;object-fit:contain;position:relative;z-index:1;border-radius:50%;filter:drop-shadow(0 7px 13px #0008)}
 .fire-country-list:empty{display:none;min-height:0}
 @media(max-width:700px){.fire-world{max-width:249px;padding:0}.fire-world img{width:100%;height:auto}}
+
+/* FIRE simplified: decorative globe first, holdings directly below */
+.fire-exposure{display:flex!important;flex-direction:column;align-items:center;gap:20px;padding:22px 0 15px!important}
+.fire-world{width:min(100%,360px);max-width:360px!important;aspect-ratio:1/1!important;height:auto!important;margin:0 auto!important;padding:0!important;display:block!important;overflow:hidden;border-radius:50%!important;background:radial-gradient(circle at 35% 28%,#17283d,#0b1421 72%,#070d17)!important;box-shadow:inset 0 0 28px #5aa7d922,0 0 0 1px #536477!important}
+.fire-world svg{display:block;width:100%;height:100%;filter:none!important}
+.fire-product-list{width:100%;display:flex;flex-direction:column;gap:8px}
+@media(max-width:700px){.fire-world{width:min(100%,290px);max-width:290px!important}.fire-exposure{gap:16px}}
