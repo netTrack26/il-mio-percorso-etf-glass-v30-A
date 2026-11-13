@@ -24,7 +24,6 @@ export default function FirePortfolio({funds,history,historyStatus}:Props){
   const sharpe=volatility>0?(mean*252)/(volatility/100/Math.sqrt(252)):0;
   return {totalReturn,volatility,sharpe,drawdown:drawdown*100,start:history[0].date,end:history[history.length-1].date};
  },[history]);
- const noExposure=true;
  return <div className="fire-page">
   <section className="fire-panel">
    <div className="fire-topline"><div><span className="fire-number">1</span><div><b>Portafoglio FIRE</b><small>{funds.length} prodotti in portafoglio</small></div></div><div className="fire-tabs">{(["Prodotti","Paesi","Riassunto AI"] as const).map(x=><button key={x} className={tab===x?"active":""} onClick={()=>setTab(x)}>{x}</button>)}</div></div>
