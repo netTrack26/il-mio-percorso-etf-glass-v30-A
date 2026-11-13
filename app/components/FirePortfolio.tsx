@@ -62,12 +62,21 @@ export default function FirePortfolio({funds,history,historyStatus}:Props){
   const sharpe=volatility!==null&&volatility>0?(mean*252)/(volatility/100/Math.sqrt(252)):null;
   return {totalReturn,volatility,sharpe,drawdown:drawdown*100,start:market[0].date,end:market[market.length-1].date,observations:returns.length};
  },[market]);
+ const ringBackground=useMemo(()=>{
+  const palette=["#baf35e","#62b9ed","#8d91ff","#e8b66a","#d78bdc","#58d5bd"];
+  const values=funds.map(f=>Math.max(0,f.qty*f.price));
+  const total=values.reduce((s,v)=>s+v,0);
+  if(!funds.length||total<=0)return "conic-gradient(#304057 0deg 360deg)";
+  let cursor=0;
+  const stops=values.map((v,i)=>{const from=cursor;cursor+=v/total*360;return palette[i%palette.length]+" "+from+"deg "+cursor+"deg";});
+  return "conic-gradient("+stops.join(",")+")";
+ },[funds]);
  const invested=funds.reduce((s,f)=>s+f.qty*f.avg,0);
  return <div className="fire-page">
   <section className="fire-panel">
    <div className="fire-exposure">
     <div className="fire-world" aria-label="Anello decorativo di diversificazione">
-     <div className="fire-ring" aria-hidden="true"><div className="fire-ring-core"><span>PORTAFOGLIO</span><strong>{funds.length}</strong><small>{funds.length===1?"ETF":"ETF"}</small></div></div>
+     <div className="fire-ring" style={{background:ringBackground}} aria-hidden="true"><div className="fire-ring-core"><span>PORTAFOGLIO</span><strong>{funds.length}</strong><small>{funds.length===1?"ETF":"ETF"}</small></div></div>
      <div className="fire-ring-caption">ESPOSIZIONE DEL PORTAFOGLIO</div>
     </div>
     <div className="fire-product-list">{funds.length?funds.map(f=><div className="fire-product" key={f.isin}><div><b>{f.ticker}</b><small>{f.name} · {f.isin}</small></div><strong>{f.qty.toLocaleString("it-IT",{maximumFractionDigits:4})} quote</strong></div>):<div className="fire-empty">Aggiungi un ETF al portafoglio per visualizzare i prodotti.</div>}</div>
