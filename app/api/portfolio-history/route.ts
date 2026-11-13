@@ -22,6 +22,7 @@ async function requireUser() {
 }
 
 type Point = { date: string; price: number };
+type PositionHistory = { isin: string; quantity: number; points: Point[] };
 function parsePoints(payload: any): Point[] {
   const found: Point[] = [];
   const visit = (value: any): void => {
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
       .filter((p: any) => /^[A-Z]{2}[A-Z0-9]{10}$/.test(p.isin) && Number.isFinite(p.quantity) && p.quantity > 0);
     if (!valid.length || valid.length !== positions.length) return NextResponse.json({ error: "Le posizioni inviate non sono valide." }, { status: 400 });
 
-    const histories = await Promise.all(valid.map(async (position: any) => {
+    const histories: PositionHistory[] = await Promise.all(valid.map(async (position: { isin: string; quantity: number }): Promise<PositionHistory> => {
       const response = await fetch(BASE + "/api/price?isin=" + encodeURIComponent(position.isin) + "&range=1y", { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok || payload?.error) throw new Error(payload?.error || "Storico prezzi non disponibile per " + position.isin + ".");
