@@ -22,7 +22,7 @@ async function requireUser() {
 }
 
 type Point = { date: string; price: number };
-type PositionHistory = { isin: string; quantity: number; points: Point[] };
+type PositionHistory = { isin: string; quantity: number; currency: string; points: Point[] };
 function parsePoints(payload: any): Point[] {
   const found: Point[] = [];
   const visit = (value: any): void => {
@@ -68,14 +68,31 @@ export async function POST(request: NextRequest) {
       if (!response.ok || payload?.error) throw new Error(payload?.error || "Storico prezzi non disponibile per " + position.isin + ".");
       const points = parsePoints(payload);
       if (!points.length) throw new Error("Il provider non ha restituito prezzi storici utilizzabili per " + position.isin + ".");
-      const currency = String(payload?.currency || payload?.data?.currency || payload?.meta?.currency || "EUR").toUpperCase();
-      if (currency !== "EUR") throw new Error("La serie di " + position.isin + " è in " + currency + ": conversione EUR non disponibile, quindi il totale aggregato non sarebbe affidabile.");
-      return { ...position, points };
+      const currency = String(payload?.currency || payload?.data?.currency || payload?.meta?.currency || payload?.metadata?.currency || "EUR").toUpperCase();
+      if (!/^[A-Z]{3}$/.test(currency)) throw new Error("Valuta non riconosciuta per " + position.isin + ".");
+      return { ...position, currency, points };
     }));
 
     const dates = [...new Set(histories.flatMap(h => h.points.map(p => p.date)))].sort();
+    const fxByCurrency = new Map<string, Map<string, number>>();
+    const currencies = [...new Set(histories.map(h => h.currency).filter(c => c !== "EUR"))];
+    for (const currency of currencies) {
+      const start = dates[0];
+      const end = dates[dates.length - 1];
+      const fxResponse = await fetch("https://api.frankfurter.dev/v1/" + start + ".." + end + "?from=" + encodeURIComponent(currency) + "&to=EUR", { cache: "no-store" });
+      if (!fxResponse.ok) throw new Error("Cambio storico " + currency + "/EUR temporaneamente non disponibile.");
+      const fxPayload = await fxResponse.json();
+      const rates = new Map<string, number>();
+      Object.entries(fxPayload?.rates || {}).forEach(([date, values]: [string, any]) => {
+        const rate = Number(values?.EUR);
+        if (Number.isFinite(rate) && rate > 0) rates.set(date, rate);
+      });
+      if (!rates.size) throw new Error("Cambio storico " + currency + "/EUR non disponibile per il periodo richiesto.");
+      fxByCurrency.set(currency, rates);
+    }
     const latest = new Array(histories.length).fill(null) as (number | null)[];
     const cursors = new Array(histories.length).fill(0);
+    const lastFx = new Map<string, { date: string; rate: number }>();
     const output: { date: string; value: number }[] = [];
     for (const date of dates) {
       histories.forEach((h, index) => {
@@ -85,12 +102,24 @@ export async function POST(request: NextRequest) {
         }
       });
       if (latest.every((p): p is number => p !== null)) {
-        const value = histories.reduce((sum, h, index) => sum + h.quantity * (latest[index] as number), 0);
+        let value = 0;
+        histories.forEach((h, index) => {
+          let priceEur = latest[index] as number;
+          if (h.currency !== "EUR") {
+            const rates = fxByCurrency.get(h.currency)!;
+            const available = [...rates.entries()].filter(([rateDate]) => rateDate <= date).sort((a, b) => b[0].localeCompare(a[0]))[0];
+            if (available) lastFx.set(h.currency, { date: available[0], rate: available[1] });
+            const fx = lastFx.get(h.currency);
+            if (!fx) throw new Error("Cambio " + h.currency + "/EUR non disponibile alla data " + date + ".");
+            priceEur *= fx.rate;
+          }
+          value += h.quantity * priceEur;
+        });
         output.push({ date, value: Number(value.toFixed(2)) });
       }
     }
     if (output.length < 2) return NextResponse.json({ error: "Lo storico comune dei tuoi ETF non contiene ancora abbastanza rilevazioni." }, { status: 422 });
-    return NextResponse.json({ points: output, source: "ETF Compare", currency: "EUR", asOf: output[output.length - 1].date }, {
+    return NextResponse.json({ points: output, source: "ETF Compare + tassi BCE (Frankfurter)", currency: "EUR", asOf: output[output.length - 1].date, fxConverted: currencies.length > 0 }, {
       headers: { "Cache-Control": "private, max-age=300" }
     });
   } catch (error) {
