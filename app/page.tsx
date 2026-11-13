@@ -108,7 +108,7 @@ async function selectPacFund(fund:{isin:string;ticker:string;name:string}){
  }catch(error){PacSearchError(error instanceof Error?error.message:"Errore durante la selezione ETF.");}
  finally{PacSearchBusy(false);}
 }
-const allCatalog=[...catalog,...extraFunds.filter(x=>!catalog.some(y=>y.isin===x.isin))];const total=funds.reduce((s,p)=>s+p.qty*p.price,0),invested=funds.reduce((s,p)=>s+p.qty*p.avg,0),profit=total-invested,fmt=(n:number)=>hidden?"••••••":money(n);
+const allCatalog=[...catalog,...extraFunds.filter(x=>!catalog.some(y=>y.isin===x.isin))];const total=funds.reduce((s,p)=>s+p.qty*p.price,0),invested=funds.reduce((s,p)=>s+p.qty*p.avg,0),profit=total-invested,pacMonthlyTotal=pacPlans.filter(p=>p.active).reduce((sum,p)=>sum+(p.frequency==="weekly"?p.amount*52/12:p.frequency==="quarterly"?p.amount/3:p.amount),0),fmt=(n:number)=>hidden?"••••••":money(n);
 const nav=[["Overview",LayoutDashboard],["Portafoglio",Wallet],["PAC",Activity],["Analisi",ChartNoAxesCombined],["Premium",Crown]] as const;
 async function toggleWatchlist(isin:string){
  const sb=getSupabaseBrowserClient();if(!sb||!userEmail){B("Accedi per gestire la watchlist.");return;}
@@ -201,7 +201,7 @@ return <main className="shell"><aside className={"sidebar "+(mobile?"open":"")}>
       <Kpi label="Patrimonio totale" value={total} format={fmt} note="Valore del portafoglio" />
       <Kpi label="Capitale investito" value={invested} format={fmt} note="Costo medio delle posizioni" />
       <Kpi label="Profitto / perdita" value={profit} format={(n) => (n >= 0 ? "+ " : "") + fmt(n)} note={((profit / (invested || 1)) * 100).toFixed(2) + "%"} />
-      <Kpi label="PAC mensile" value={0} format={fmt} note="Nessun PAC configurato" />
+      <Kpi label="PAC mensile" value={pacMonthlyTotal} format={fmt} note={pacPlans.some(p=>p.active)?"Totale mensile equivalente dei piani attivi":"Nessun PAC attivo"} />
     </div>
     <div className="grid">
       <section className="panel chart">
