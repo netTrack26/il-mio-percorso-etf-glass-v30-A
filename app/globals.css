@@ -281,3 +281,10 @@
 .fire-ring-core small{font-size:10px;letter-spacing:2px;color:#baf35e;font-weight:800}
 .fire-ring-caption{font-size:9px;letter-spacing:2.4px;color:#9eacc1;font-weight:800;text-align:center}
 @media(max-width:700px){.fire-world{width:min(100%,320px)!important;max-width:320px!important}.fire-ring{width:min(72vw,250px);padding:20px}.fire-ring-core strong{font-size:42px}}
+
+
+/* Blue network sphere inspired by the supplied reference */
+.fire-world.fire-network-sphere{width:min(100%,360px)!important;max-width:360px!important;aspect-ratio:1!important;height:auto!important;padding:0!important;margin:0 auto!important;display:block!important;overflow:visible!important;background:transparent!important;box-shadow:none!important;border:0!important;border-radius:0!important}
+.fire-world.fire-network-sphere:before{display:none!important}
+.fire-world.fire-network-sphere svg{display:block!important;width:100%!important;height:auto!important;aspect-ratio:1!important;position:relative;filter:drop-shadow(0 0 22px #079bdc33)!important;overflow:visible}
+@media(max-width:700px){.fire-world.fire-network-sphere{width:min(100%,320px)!important;max-width:320px!important}}
