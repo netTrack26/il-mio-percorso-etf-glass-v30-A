@@ -75,11 +75,37 @@ export default function FirePortfolio({funds,history,historyStatus}:Props){
  return <div className="fire-page">
   <section className="fire-panel">
    <div className="fire-exposure">
-    <div className="fire-world" aria-label="Anello decorativo di diversificazione">
-     <div className="fire-ring" style={{background:ringBackground}} aria-hidden="true"><div className="fire-ring-core"><span>PORTAFOGLIO</span><strong>{funds.length}</strong><small>{funds.length===1?"ETF":"ETF"}</small></div></div>
-     <div className="fire-ring-caption">ESPOSIZIONE DEL PORTAFOGLIO</div>
-    </div>
-    <div className="fire-product-list">{funds.length?funds.map(f=><div className="fire-product" key={f.isin}><div><b>{f.ticker}</b><small>{f.name} · {f.isin}</small></div><strong>{f.qty.toLocaleString("it-IT",{maximumFractionDigits:4})} quote</strong></div>):<div className="fire-empty">Aggiungi un ETF al portafoglio per visualizzare i prodotti.</div>}</div>
+    <div className="fire-world fire-network-sphere" aria-label="Sfera tecnologica blu decorativa">
+     <svg viewBox="0 0 420 420" role="img" aria-hidden="true">
+      <defs>
+       <radialGradient id="netCore" cx="48%" cy="43%" r="58%"><stop offset="0" stopColor="#087eb8" stopOpacity=".95"/><stop offset=".38" stopColor="#034a78" stopOpacity=".78"/><stop offset=".78" stopColor="#031b31" stopOpacity=".96"/><stop offset="1" stopColor="#020812" stopOpacity="1"/></radialGradient>
+       <radialGradient id="netGlow"><stop offset="0" stopColor="#21c8ff" stopOpacity=".9"/><stop offset="1" stopColor="#0876bb" stopOpacity="0"/></radialGradient>
+       <clipPath id="netClip"><circle cx="210" cy="210" r="172"/></clipPath>
+       <filter id="netBlur"><feGaussianBlur stdDeviation="8"/></filter>
+       <filter id="netBloom"><feGaussianBlur stdDeviation="2.8"/></filter>
+      </defs>
+      <circle cx="210" cy="210" r="184" fill="#009de8" opacity=".12" filter="url(#netBlur)"/>
+      <circle cx="210" cy="210" r="174" fill="url(#netCore)" stroke="#168cc5" strokeOpacity=".55" strokeWidth="1.5"/>
+      <g clipPath="url(#netClip)" fill="none" stroke="#36caff" strokeOpacity=".58" strokeWidth="1.15">
+       <ellipse cx="210" cy="210" rx="166" ry="62" transform="rotate(-28 210 210)"/>
+       <ellipse cx="210" cy="210" rx="166" ry="62" transform="rotate(28 210 210)"/>
+       <ellipse cx="210" cy="210" rx="166" ry="112" transform="rotate(58 210 210)" opacity=".65"/>
+       <ellipse cx="210" cy="210" rx="166" ry="112" transform="rotate(-58 210 210)" opacity=".65"/>
+       <ellipse cx="210" cy="210" rx="72" ry="172"/>
+       <ellipse cx="210" cy="210" rx="126" ry="172" transform="rotate(90 210 210)" opacity=".55"/>
+       <path d="M44 210H376M62 145L358 275M62 275L358 145M104 75L316 345M104 345L316 75"/>
+       <path d="M75 122L145 165 205 135 266 165 345 119M62 228L126 190 183 244 244 198 352 245M92 304L158 260 218 292 286 246 336 300"/>
+      </g>
+      <circle cx="210" cy="210" r="92" fill="url(#netGlow)" opacity=".45"/>
+      <g fill="#38d5ff" filter="url(#netBloom)">
+       <circle cx="82" cy="150" r="4"/><circle cx="123" cy="95" r="4"/><circle cx="166" cy="166" r="5"/><circle cx="211" cy="112" r="4"/><circle cx="267" cy="132" r="5"/><circle cx="331" cy="151" r="4"/><circle cx="350" cy="225" r="4"/><circle cx="291" cy="285" r="5"/><circle cx="230" cy="330" r="4"/><circle cx="151" cy="295" r="4"/><circle cx="87" cy="246" r="4"/><circle cx="205" cy="210" r="7"/><circle cx="250" cy="225" r="5"/><circle cx="174" cy="245" r="4"/><circle cx="280" cy="205" r="4"/><circle cx="140" cy="205" r="4"/>
+      </g>
+      <g fill="#d5f7ff">
+       <circle cx="82" cy="150" r="1.6"/><circle cx="123" cy="95" r="1.6"/><circle cx="166" cy="166" r="1.8"/><circle cx="211" cy="112" r="1.6"/><circle cx="267" cy="132" r="1.8"/><circle cx="331" cy="151" r="1.6"/><circle cx="350" cy="225" r="1.6"/><circle cx="291" cy="285" r="1.8"/><circle cx="230" cy="330" r="1.6"/><circle cx="151" cy="295" r="1.6"/><circle cx="87" cy="246" r="1.6"/><circle cx="205" cy="210" r="2.4"/><circle cx="250" cy="225" r="1.8"/><circle cx="174" cy="245" r="1.6"/><circle cx="280" cy="205" r="1.6"/><circle cx="140" cy="205" r="1.6"/>
+      </g>
+      <circle cx="210" cy="210" r="174" fill="none" stroke="#51cfff" strokeOpacity=".2" strokeWidth="5"/>
+     </svg>
+    </div>    <div className="fire-product-list">{funds.length?funds.map(f=><div className="fire-product" key={f.isin}><div><b>{f.ticker}</b><small>{f.name} · {f.isin}</small></div><strong>{f.qty.toLocaleString("it-IT",{maximumFractionDigits:4})} quote</strong></div>):<div className="fire-empty">Aggiungi un ETF al portafoglio per visualizzare i prodotti.</div>}</div>
    </div>
    <div className="fire-detail-action"><button onClick={()=>setDetails(v=>!v)}>Composizione dettagliata <ArrowRight size={15}/></button></div>
    {details&&<div className="fire-detail-note"><b>Configurazione analisi</b><div className="fire-options"><label>Ribilanciamento<select value={rebalance} onChange={e=>setRebalance(e.target.value)}><option>Annuale</option><option>Semestrale</option><option>Trimestrale</option><option>Mensile</option><option>Non previsto</option></select></label><label><input type="checkbox" checked={taxes} onChange={e=>setTaxes(e.target.checked)}/> Considera imposte</label><label><input type="checkbox" checked={stamp} onChange={e=>setStamp(e.target.checked)}/> Considera imposta di bollo</label><label><input type="checkbox" checked={inflation} onChange={e=>setInflation(e.target.checked)}/> Considera inflazione</label></div><p>Le opzioni sono impostazioni del modello: non modificano gli ordini né applicano costi finché non inserisci aliquote e parametri fiscali specifici.</p></div>}
