@@ -247,3 +247,7 @@
 .fire-world svg{display:block;width:100%;height:100%;position:relative;z-index:1;filter:drop-shadow(0 7px 13px #0008)}
 .fire-world>span{display:none}
 @media(max-width:700px){.fire-world{max-width:220px;padding:0}}
+
+.fire-world img{display:block;width:100%;height:auto;object-fit:contain;position:relative;z-index:1;border-radius:50%;filter:drop-shadow(0 7px 13px #0008)}
+.fire-country-list:empty{display:none;min-height:0}
+@media(max-width:700px){.fire-world{max-width:249px;padding:0}.fire-world img{width:100%;height:auto}}
