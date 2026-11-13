@@ -267,3 +267,17 @@
 .fire-world{width:min(100%,360px);aspect-ratio:249/227!important;height:auto!important;max-width:360px!important;overflow:visible!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;padding:0!important}
 .fire-world img{display:block;width:100%;height:100%;object-fit:contain;border:0;border-radius:0;box-shadow:none}
 @media(max-width:700px){.auth-gate{padding:20px 16px}.auth-gate-card{border-radius:20px}.fire-world{width:min(100%,320px);max-width:320px!important}}
+
+
+/* FIRE portfolio: premium diversification ring */
+.fire-world{width:min(100%,360px)!important;max-width:360px!important;aspect-ratio:1!important;height:auto!important;margin:0 auto!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:18px!important;overflow:visible!important;background:none!important;box-shadow:none!important;border:0!important;border-radius:0!important;padding:8px!important}
+.fire-world:before{display:none!important}
+.fire-world img{display:none!important}
+.fire-ring{width:min(78vw,270px);aspect-ratio:1;border-radius:50%;padding:22px;position:relative;box-shadow:0 0 35px #70b7ef18,0 16px 38px #0007;filter:drop-shadow(0 0 12px #83baff22)}
+.fire-ring:before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from -35deg,transparent 0 2deg,#ffffff80 2.5deg 3deg,transparent 3.5deg 88deg,#ffffff65 88.5deg 89deg,transparent 89.5deg 178deg,#ffffff65 178.5deg 179deg,transparent 179.5deg 268deg,#ffffff65 268.5deg 269deg,transparent 269.5deg);pointer-events:none}
+.fire-ring-core{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 25%,#202c40 0,#111a29 62%,#0b111d 100%);border:1px solid #9bb9d344;box-shadow:inset 0 0 35px #72b9ed12,0 0 0 9px #0c1421;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px}
+.fire-ring-core span{font-size:9px;letter-spacing:2px;color:#8e9db5;font-weight:800}
+.fire-ring-core strong{font-size:48px;line-height:1;color:#eaf1fc;text-shadow:0 0 22px #8db9ff55}
+.fire-ring-core small{font-size:10px;letter-spacing:2px;color:#baf35e;font-weight:800}
+.fire-ring-caption{font-size:9px;letter-spacing:2.4px;color:#9eacc1;font-weight:800;text-align:center}
+@media(max-width:700px){.fire-world{width:min(100%,320px)!important;max-width:320px!important}.fire-ring{width:min(72vw,250px);padding:20px}.fire-ring-core strong{font-size:42px}}
