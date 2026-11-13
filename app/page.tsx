@@ -200,7 +200,7 @@ async function save(){
  const nextQty=base.qty+n;
  const next={...base,qty:nextQty,avg:(base.qty*base.avg+n*v+c)/nextQty,price:v};
  F([...funds.filter(x=>x.ticker!==etf.ticker),next]);
- const item={id:Date.now(),ticker:etf.ticker,qty:n,price:v,fee:c,date:new Date().toLocaleDateString("it-IT")};
+ const item={id:Date.now(),isin:etf.isin,ticker:etf.ticker,qty:n,price:v,fee:c,date:new Date().toLocaleDateString("it-IT"),timestamp:Date.now(),type:"buy"};
  T([item,...tx]);
  D(false);
  PurchaseIsin("");K("");PurchaseSearchMessage("");
