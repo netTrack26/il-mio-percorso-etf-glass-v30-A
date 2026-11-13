@@ -12,3 +12,24 @@
 @media(max-width:700px){.auth-trigger{height:31px;padding:0 9px;font-size:9px}.actions .avatar{display:none}}
 
 .empty-state{min-height:100px;display:grid;place-items:center;text-align:center;padding:22px;color:#aeb0b7;font-size:12px;line-height:1.6;border:1px dashed #ffffff2a;border-radius:13px;background:#ffffff05}.empty-cell{text-align:center!important;color:#aeb0b7!important;padding:30px 12px!important}
+
+/* Portfolio analysis */
+.analysis-layout{display:grid;gap:15px}
+.analysis-chart-grid{display:grid;grid-template-columns:minmax(220px,.9fr) minmax(220px,1.1fr);align-items:center;gap:12px;margin-top:12px}
+.analysis-donut{position:relative;min-width:0}
+.analysis-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.analysis-donut-center b{font:700 18px Manrope,sans-serif}
+.analysis-donut-center small{margin-top:4px;color:#aeb0b7;font-size:9px}
+.analysis-legend{display:grid;gap:13px}
+.analysis-legend-row{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:center;gap:9px;font-size:11px;color:#d6d7dc}
+.analysis-legend-row i{width:8px;height:8px;border-radius:50%}
+.analysis-legend-row b{font-size:11px;color:#fff;font-variant-numeric:tabular-nums}
+.analysis-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.analysis-bars{margin:16px 0 0;min-width:0}
+.analysis-position{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid #ffffff16}
+.analysis-position>div{display:grid;gap:5px;min-width:0}
+.analysis-position b{font-size:11px;overflow-wrap:anywhere}
+.analysis-position small{font-size:9px;color:#a6a7ae}
+.analysis-position>strong{font-size:11px;white-space:nowrap}
+.analysis-disclaimer{line-height:1.7;margin:0 2px 10px}
+@media(max-width:700px){.analysis-chart-grid{grid-template-columns:1fr;gap:0}.analysis-donut{max-width:320px;width:100%;margin:auto}.analysis-kpis{grid-template-columns:1fr 1fr;gap:8px}.analysis-kpis .kpi:last-child{grid-column:1/-1}.analysis-position{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}.analysis-position>strong{grid-column:2;text-align:right}.analysis-position>div:nth-child(2){text-align:right}}
