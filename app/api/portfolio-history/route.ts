@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   try {
     if (!(await requireUser())) return NextResponse.json({ error: "Accesso richiesto." }, { status: 401 });
     const body = await request.json();
-    const startDate = typeof body.startDate === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.startDate) ? body.startDate : null;
+    const startDate = typeof body.startDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.startDate) ? body.startDate : null;
     const positions = Array.isArray(body.positions) ? body.positions.slice(0, 30) : [];
     if (!positions.length) return NextResponse.json({ error: "Nessuna posizione da analizzare." }, { status: 400 });
     const valid = positions.map((p: any) => ({ isin: String(p.isin || "").toUpperCase(), quantity: Number(p.quantity) }))
