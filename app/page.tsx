@@ -127,7 +127,8 @@ async function selectPacFund(fund:{isin:string;ticker:string;name:string}){
 }
 const allCatalog=[...catalog,...extraFunds.filter(x=>!catalog.some(y=>y.isin===x.isin))];
 const total=funds.reduce((s,p)=>s+p.qty*p.price,0),invested=funds.reduce((s,p)=>s+p.qty*p.avg,0),profit=total-invested,pacMonthlyTotal=pacPlans.filter(p=>p.active).reduce((sum,p)=>sum+(p.frequency==="weekly"?p.amount*52/12:p.frequency==="quarterly"?p.amount/3:p.amount),0),fmt=(n:number)=>hidden?"••••••":money(n),analysisPalette=["#baf35e","#82b8ff","#c59cff","#ffbf69","#67d5c5","#f28eae"],analysisRows=funds.map(p=>({name:p.ticker,value:Math.max(0,p.qty*p.price),invested:p.qty*p.avg,pnl:p.qty*(p.price-p.avg),weight:total>0?(p.qty*p.price/total)*100:0})).filter(p=>p.value>0).sort((a,b)=>b.value-a.value),topWeight=analysisRows[0]?.weight||0,portfolioReturn=invested>0?(profit/invested)*100:0;
-const firstPortfolioDate=tx.filter(t=>t.type==="buy"&&Number.isFinite(t.timestamp)).reduce((min,t)=>min===null||t.timestamp!<min?t.timestamp!:min,null as number|null);\nconst nav=[["Overview",LayoutDashboard],["Portafoglio",Wallet],["PAC",Activity],["Analisi",ChartNoAxesCombined],["Premium",Crown]] as const;
+const firstPortfolioDate=tx.filter(t=>t.type==="buy"&&Number.isFinite(t.timestamp)).reduce((min,t)=>min===null||t.timestamp! < min?t.timestamp!:min,null as number|null);
+const nav=[["Overview",LayoutDashboard],["Portafoglio",Wallet],["PAC",Activity],["Analisi",ChartNoAxesCombined],["Premium",Crown]] as const;
 async function toggleWatchlist(isin:string){
  const sb=getSupabaseBrowserClient();if(!sb||!userEmail){B("Accedi per gestire la watchlist.");return;}
  const {data:{user}}=await sb.auth.getUser();if(!user)return;
