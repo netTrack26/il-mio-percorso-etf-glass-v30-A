@@ -8,15 +8,21 @@ type Props={funds:Fund[];history:Point[];historyStatus:"idle"|"loading"|"ready"|
 const eur=(n:number)=>n.toLocaleString("it-IT",{style:"currency",currency:"EUR"});
 const pct=(n:number)=>n.toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2})+"%";
 const WORLD=[
-"M75 80 L105 48 153 30 204 37 231 56 258 61 278 88 265 111 246 118 235 142 214 148 207 173 187 184 169 164 153 158 135 140 116 132 104 111 84 105Z",
-"M220 184 L244 194 258 220 254 246 267 267 260 302 246 333 231 354 219 333 214 302 201 277 204 244 190 222Z",
-"M278 45 L302 25 326 32 334 51 319 66 297 62Z",
-"M363 91 L386 79 413 84 430 72 466 76 490 62 530 68 556 54 600 62 625 83 666 82 699 100 722 120 709 139 680 137 664 154 637 148 619 165 597 158 583 174 559 167 545 181 518 177 499 160 475 164 459 149 438 157 421 144 398 151 382 135 360 130Z",
-"M421 164 L450 174 472 196 468 224 451 250 443 279 424 302 404 291 392 263 377 243 382 213 395 189Z",
-"M586 235 L614 222 646 229 663 251 651 272 620 280 592 267Z",
-"M350 322 L430 322 508 330 592 329 668 324 739 330 792 345 758 356 688 359 615 354 544 360 466 353 396 356Z",
-"M739 157 L748 149 758 153 755 165Z","M780 188 L790 181 800 187 794 198Z"
+"M40 75 L49 57 65 47 78 31 98 27 108 35 104 47 115 55 110 66 95 67 88 82 76 91 62 89 53 101 42 96Z",
+"M58 105 L73 99 88 105 96 119 111 123 119 137 132 143 138 157 151 164 154 178 145 188 132 185 124 174 111 169 104 155 91 149 84 135 72 129 68 116Z",
+"M119 185 L133 187 143 198 151 213 148 230 139 244 130 239 124 223 116 211Z",
+"M151 67 L160 57 171 58 178 68 172 79 160 80Z",
+"M168 86 L180 76 197 78 207 69 223 74 235 68 251 78 267 75 282 84 299 81 314 91 328 88 343 100 356 101 368 116 357 127 343 123 332 132 318 128 306 139 293 133 280 141 264 135 253 144 237 137 225 146 210 137 196 143 183 131 171 133 159 120Z",
+"M183 140 L199 137 213 145 225 157 222 171 212 180 205 194 191 197 183 185 174 176 171 160Z",
+"M221 173 L237 164 252 170 260 184 253 196 241 201 235 214 224 205 215 190Z",
+"M232 214 L249 210 260 221 258 239 247 252 236 244 228 230Z",
+"M275 145 L287 141 296 149 291 160 280 162Z",
+"M298 178 L314 170 330 177 342 192 336 207 319 210 305 199Z",
+"M342 216 L355 208 369 214 372 228 360 238 347 232Z",
+"M80 20 L94 13 106 17 102 27 89 30Z",
+"M360 78 L373 70 386 77 382 89 368 91Z"
 ];
+
 export default function FirePortfolio({funds,history,historyStatus}:Props){
  const [tab,setTab]=useState<"Prodotti"|"Paesi"|"Riassunto AI">("Paesi");
  const [details,setDetails]=useState(false);
@@ -62,7 +68,7 @@ export default function FirePortfolio({funds,history,historyStatus}:Props){
   <section className="fire-panel">
    <div className="fire-topline"><div><span className="fire-number">1</span><div><b>Portafoglio FIRE</b><small>{funds.length} prodotti in portafoglio</small></div></div><div className="fire-tabs">{(["Prodotti","Paesi","Riassunto AI"] as const).map(x=><button key={x} className={tab===x?"active":""} onClick={()=>setTab(x)}>{x}</button>)}</div></div>
    <div className="fire-exposure">
-    <div className="fire-world"><svg viewBox="0 0 840 390" role="img" aria-label="Mappa geografica del mondo"><defs><linearGradient id="land" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8fd4f7"/><stop offset="1" stopColor="#397da9"/></linearGradient><pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse"><path d="M42 0H0V42" fill="none" stroke="#78a8c8" strokeOpacity=".12"/></pattern></defs><rect width="840" height="390" fill="url(#grid)"/>{WORLD.map((d,i)=><path key={i} d={d} fill="url(#land)" stroke="#a8ddf5" strokeWidth="1.2" strokeLinejoin="round"/>)}<path d="M0 195H840M420 0V390" stroke="#9bc6e2" strokeOpacity=".2" strokeDasharray="4 8" fill="none"/></svg><span>WORLD MAP · NATURAL EARTH STYLE</span></div>
+    <div className="fire-world" aria-hidden="true"><svg viewBox="0 0 400 400"><defs><radialGradient id="ocean" cx="34%" cy="27%" r="78%"><stop offset="0" stopColor="#17283d"/><stop offset=".68" stopColor="#0b1421"/><stop offset="1" stopColor="#070d17"/></radialGradient><linearGradient id="land" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8bd0f4"/><stop offset=".55" stopColor="#548db7"/><stop offset="1" stopColor="#315c80"/></linearGradient><clipPath id="globeClip"><circle cx="200" cy="200" r="184"/></clipPath><filter id="landShadow"><feGaussianBlur stdDeviation="1.2"/></filter></defs><circle cx="200" cy="200" r="186" fill="url(#ocean)" stroke="#536477" strokeWidth="1.5"/><g clipPath="url(#globeClip)"><path d="M16 200H384M200 16V384M35 112Q200 175 365 112M35 288Q200 225 365 288" stroke="#47617a" strokeOpacity=".17" strokeWidth="1" fill="none"/><g transform="translate(0 0)" fill="url(#land)" stroke="#101a29" strokeWidth="2.2" strokeLinejoin="round">{WORLD.map((d,i)=><path key={i} d={d} transform="translate(8 42) scale(.98 .82)"/>}</g><g fill="none" stroke="#172638" strokeWidth="1.3" opacity=".9"><path d="M57 125l18 8 10-10 15 5 9-12 13 3 8-9M73 155l18-4 8 10 15-3 12 12M118 210l12 7 8 16M165 106l14 8 8-10 12 3 9-9 16 3 11-9 14 5 11-9 16 6M186 139l15 6 6 12-7 12M216 180l12 8 7 13M252 117l10 8 15-4 8 9 13-3 8 8M283 158l12 7 10-4 9 9M305 194l11 8 10-3M240 230l9 9 8-4"/></g><path d="M38 200Q200 32 362 200" stroke="#a8d9f2" strokeOpacity=".13" strokeWidth="2" fill="none"/></g><circle cx="200" cy="200" r="186" fill="none" stroke="#64768a" strokeOpacity=".75" strokeWidth="1.2"/></svg></div>
     <div className="fire-country-list">
      {tab==="Paesi"?<div className="fire-empty"><Info size={19}/><b>Ripartizione geografica da collegare ai dati holdings</b><p>La mappa ora mostra i continenti reali in forma vettoriale. Le percentuali per Paese compariranno quando sarà collegata una fonte verificata delle partecipazioni sottostanti degli ETF.</p><small>{funds.length} ETF · esposizione geografica non ancora calcolata</small></div>:tab==="Prodotti"?funds.length?funds.map(f=><div className="fire-product" key={f.isin}><div><b>{f.ticker}</b><small>{f.name} · {f.isin}</small></div><strong>{f.qty.toLocaleString("it-IT",{maximumFractionDigits:4})} quote</strong></div>):<div className="fire-empty">Aggiungi un ETF al portafoglio per visualizzare i prodotti.</div>:<div className="fire-empty"><Info size={19}/><b>Riepilogo automatico in preparazione</b><p>Il riepilogo sarà disponibile quando avremo esposizioni e dati storici verificati.</p></div>}
     </div>
