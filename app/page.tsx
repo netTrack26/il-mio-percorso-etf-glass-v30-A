@@ -129,6 +129,7 @@ useEffect(()=>{
   else{F([]);T([]);ExtraFunds([]);CloudReady(true);}
  });
  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event:any,session:any)=>{
+  if(_event==="PASSWORD_RECOVERY"){window.location.replace("/set-password");return;}
   UserEmail(session?.user.email??null);
   if(!session){F([]);T([]);ExtraFunds([]);Watchlist([]);PacPlans([]);CloudReady(true);return;}
   CloudReady(false);
