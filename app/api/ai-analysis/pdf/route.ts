@@ -117,11 +117,16 @@ export async function POST(request: NextRequest) {
     const gap = 9;
     const col = (doc.page.width - 96 - gap * 3) / 4;
     const y = doc.y;
-    addMetric(doc, 48, y, col, "Capitale investito", invested);
+    addMetric(doc, 48, y, col, "Capitale ricostruito", invested);
     addMetric(doc, 48 + col + gap, y, col, "Valore stimato", current, true);
     addMetric(doc, 48 + (col + gap) * 2, y, col, "Risultato", pnl + " (" + pnlPct + ")");
     addMetric(doc, 48 + (col + gap) * 3, y, col, "ETF attivi", String(holdings.length));
     doc.y = y + 75;
+    doc.font("Helvetica-Bold").fontSize(8).fillColor("#4D5964").text(
+      "ATTENZIONE: il capitale ricostruito è calcolato usando quantità e prezzi di carico inseriti o modificati dall'utente. Non certifica i versamenti realmente effettuati né costituisce uno storico degli acquisti.",
+      { width: 500, lineGap: 2 }
+    );
+    doc.moveDown(0.45);
     const terLabel = facts.weightedTerPercent === null || facts.weightedTerPercent === undefined
       ? "TER ponderato: non disponibile"
       : "TER ponderato indicativo: " + Number(facts.weightedTerPercent).toFixed(3).replace(".", ",") + "%";
