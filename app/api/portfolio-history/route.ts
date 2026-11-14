@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const isins = [...new Set(positions.map(p => p.isin))];
     const { data: instruments, error } = await supabase.from("etfs").select("isin,ticker,exchange,currency").in("isin", isins);
     if (error) throw new Error("Lettura catalogo ETF non riuscita: " + error.message);
-    const byIsin = new Map((instruments || []).map((x: any) => [x.isin, x]));
+    const byIsin = new Map<string, any>((instruments || []).map((x: any) => [String(x.isin), x] as [string, any]));
     const histories = await Promise.all(positions.map(async p => {
       const instrument = byIsin.get(p.isin);
       if (!instrument) throw new Error("ETF non presente nel catalogo: " + p.isin);
