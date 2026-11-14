@@ -31,15 +31,26 @@ export async function fetchYahooChart(instrument: YahooInstrument, range = "5d",
       if (!response.ok) { lastError = "Yahoo Finance HTTP " + response.status; continue; }
       const payload: any = await response.json();
       const found = payload?.chart?.result?.[0];
-      if (found) { result = found; symbol = candidate; break; }
+      if (found) {
+        const ts: number[] = Array.isArray(found.timestamp) ? found.timestamp : [];
+        const adj: Array<number | null> = found.indicators?.adjclose?.[0]?.adjclose || [];
+        const close: Array<number | null> = found.indicators?.quote?.[0]?.close || [];
+        const usable = ts.filter((_, i) => Number(adj[i] ?? close[i]) > 0 && Number.isFinite(Number(adj[i] ?? close[i]))).length;
+        if (range === "max" && usable < 2) { lastError = "Storico insufficiente per " + candidate; continue; }
+        result = found; symbol = candidate; break;
+      }
       lastError = String(payload?.chart?.error?.description || "Nessun dato per " + candidate);
     } catch (error) { lastError = error instanceof Error ? error.message : "Errore Yahoo Finance"; }
   }
   if (!result) throw new Error(lastError || "Nessun dato Yahoo Finance per " + instrument.ticker + ".");
   const meta = result.meta || {};
   const timestamps: number[] = Array.isArray(result.timestamp) ? result.timestamp : [];
-  const closes: Array<number | null> = result.indicators?.adjclose?.[0]?.adjclose || result.indicators?.quote?.[0]?.close || [];
-  const points = timestamps.map((time, i) => ({ date: new Date(time * 1000).toISOString().slice(0, 10), price: Number(closes[i]) })).filter(p => Number.isFinite(p.price) && p.price > 0);
+  const adjusted: Array<number | null> = result.indicators?.adjclose?.[0]?.adjclose || [];
+  const regular: Array<number | null> = result.indicators?.quote?.[0]?.close || [];
+  const points = timestamps.map((time, i) => {
+    const raw = adjusted[i] ?? regular[i];
+    return { date: new Date(time * 1000).toISOString().slice(0, 10), price: raw === null || raw === undefined ? NaN : Number(raw) };
+  }).filter(p => Number.isFinite(p.price) && p.price > 0);
   const price = Number(meta.regularMarketPrice ?? points.at(-1)?.price);
   if (!Number.isFinite(price) || price <= 0) throw new Error("Prezzo corrente non disponibile per " + symbol + ".");
   const quoteTimeSeconds = Number(meta.regularMarketTime || timestamps.at(-1) || 0);
