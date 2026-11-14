@@ -47,6 +47,12 @@ export async function POST(request: NextRequest) {
       }
     });
     if (error) {
+      console.error("[beta-invite] Supabase inviteUserByEmail failed:", {
+        status: error.status,
+        code: error.code,
+        name: error.name,
+        message: error.message
+      });
       const message = /already|registered|exists/i.test(error.message)
         ? "Esiste già un account con questa email. Prova ad accedere."
         : "Non è stato possibile inviare l’invito. Riprova più tardi.";
