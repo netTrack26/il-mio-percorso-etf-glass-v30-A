@@ -99,12 +99,12 @@ export async function POST(request: NextRequest) {
         const snapshotId = savedSnapshot.id;
         const { error: deleteError } = await admin.from("etf_lookthrough_holdings").delete().eq("snapshot_id", snapshotId);
         if (deleteError) throw new Error("Pulizia holdings precedenti: " + deleteError.message);
-        const mapped = sourceRows.map((item:any) => {
+        const mapped = sourceRows.flatMap((item:any) => {
           const symbolOrIsin = String(item.isin || item.asset || item.symbol || item.name || "").trim();
           const weight = asPercent(item.weightPercentage);
-          if (!symbolOrIsin || !String(item.name || item.asset || "").trim() || weight === null) return null;
+          if (!symbolOrIsin || !String(item.name || item.asset || "").trim() || weight === null) return [];
           const securityIsin = /^[A-Z]{2}[A-Z0-9]{10}$/.test(String(item.isin || "").toUpperCase()) ? String(item.isin).toUpperCase() : null;
-          return {
+          return [{
             snapshot_id: snapshotId,
             security_key: securityIsin || String(item.asset || item.symbol || item.name).trim().toUpperCase(),
             security_isin: securityIsin,
@@ -114,8 +114,8 @@ export async function POST(request: NextRequest) {
             sector: item.sector || item.industry || null,
             country: item.country || null,
             asset_type: item.assetType || item.type || null
-          };
-        }).filter(Boolean);
+          }];
+        });
         for (let i=0;i<mapped.length;i+=500) {
           const { error } = await admin.from("etf_lookthrough_holdings").insert(mapped.slice(i,i+500));
           if (error) throw new Error("Import holdings: " + error.message);
