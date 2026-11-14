@@ -13,11 +13,19 @@ export async function POST(request: NextRequest) {
     if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) {
       return NextResponse.json({ error: "Inserisci un indirizzo email valido." }, { status: 400 });
     }
-    const expectedCode = process.env.BETA_INVITE_CODE;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!expectedCode || !supabaseUrl || !serviceKey) {
-      return NextResponse.json({ error: "Inviti Beta non ancora configurati sul server." }, { status: 503 });
+    const expectedCode = process.env.BETA_INVITE_CODE?.trim();
+    const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const supabaseUrl = rawSupabaseUrl?.replace(/\\/+$/, "");
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    const missing: string[] = [];
+    if (!expectedCode) missing.push("BETA_INVITE_CODE");
+    if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!serviceKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    if (missing.length) {
+      console.error("[beta-invite] Missing server environment variables:", missing.join(", "));
+      return NextResponse.json({
+        error: "Configurazione inviti incompleta sul server. Variabili mancanti: " + missing.join(", ") + ". Dopo averle aggiunte, esegui un nuovo deployment Preview."
+      }, { status: 503 });
     }
     if (!inviteCode || inviteCode.length > 128 || inviteCode !== expectedCode) {
       return NextResponse.json({ error: "Codice invito non valido." }, { status: 403 });
