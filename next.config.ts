@@ -1,9 +1,18 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
-  // PDFKit usa font standard risolti a runtime: evita che il bundler di Next
-  // tenti di risolvere gli alias interni (#standard-fonts/*) durante il build.
-  serverExternalPackages: ["pdfkit"]
+  // PDFKit deve restare esterno al bundle Node per risolvere i font
+  // relativi al proprio package durante la generazione del PDF.
+  serverExternalPackages: ["pdfkit"],
+
+  // I font vengono caricati dinamicamente da PDFKit: il tracer di Vercel
+  // non sempre li include automaticamente nella funzione serverless.
+  outputFileTracingIncludes: {
+    "/api/ai-analysis/pdf": [
+      "./node_modules/pdfkit/js/standard-fonts/**/*",
+      "./node_modules/pdfkit/js/data/**/*"
+    ]
+  }
 };
 
 export default config;
