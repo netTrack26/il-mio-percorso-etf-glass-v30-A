@@ -81,23 +81,53 @@ useEffect(()=>{
  });
  return()=>{active=false;subscription.unsubscribe();};
 },[]);
-const firstPortfolioDate=tx.filter(t=>t.type==="buy"&&Number.isFinite(t.timestamp)).reduce((min,t)=>min===null||t.timestamp! < min?t.timestamp!:min,null as number|null);
 useEffect(()=>{
- if(!userEmail||funds.length===0){MarketHistory([]);MarketHistoryStatus("idle");MarketHistoryError("");return;}
+ if(!tx.length){MarketHistory([]);MarketHistoryStatus("idle");MarketHistoryError("");return;}
+ // Storico interno: ricostruisce il capitale netto presente nel portafoglio a ogni movimento.
+ // Non interpola prezzi di mercato non disponibili; aggiunge il controvalore live come ultimo punto.
+ const holdings=new Map<string,{qty:number;cost:number}>();
+ const points:{date:string;value:number}[]=[];
+ const ordered=[...tx].sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+ for(const movement of ordered){
+  const current=holdings.get(movement.isin)||{qty:0,cost:0};
+  const q=Math.max(0,Number(movement.qty)||0),p=Math.max(0,Number(movement.price)||0),fee=Math.max(0,Number(movement.fee)||0);
+  if(movement.type==="buy"&&q>0){current.qty+=q;current.cost+=q*p+fee;}
+  else if(movement.type==="sell"&&q>0&&current.qty>0){
+   const average=current.cost/current.qty;
+   const sold=Math.min(q,current.qty);
+   current.qty-=sold;current.cost=Math.max(0,current.cost-average*sold);
+  }
+  holdings.set(movement.isin,current);
+  const investedNow=[...holdings.values()].reduce((sum,h)=>sum+h.cost,0);
+  points.push({date:new Date(movement.timestamp||Date.now()).toISOString().slice(0,10),value:Number(investedNow.toFixed(2))});
+ }
+ const currentValue=funds.reduce((sum,p)=>sum+p.qty*p.price,0);
+ const today=new Date().toISOString().slice(0,10);
+ if(currentValue>0)points.push({date:today,value:Number(currentValue.toFixed(2))});
+ const compact=points.filter((point,index)=>index===0||point.date!==points[index-1].date||index===points.length-1);
+ MarketHistory(compact);
+ MarketHistoryStatus(compact.length>0?"ready":"idle");
+ MarketHistoryError("");
+},[tx,funds.map(p=>p.isin+":"+p.qty+":"+p.price).join("|")]);
+useEffect(()=>{
+ if(!userEmail||funds.length===0)return;
  let cancelled=false;
- const loadMarketHistory=async()=>{
-  MarketHistoryStatus("loading");MarketHistoryError("");
+ const loadQuotes=async()=>{
   try{
-   const response=await fetch("/api/portfolio-history",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({positions:funds.map(p=>({isin:p.isin,quantity:p.qty})),startDate:firstPortfolioDate===null?null:new Date(firstPortfolioDate).toISOString().slice(0,10)})});
+   const response=await fetch("/api/portfolio-quotes",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({isins:funds.map(p=>p.isin)})});
    const payload=await response.json();
-   if(!response.ok)throw new Error(payload.error||"Storico di mercato non disponibile.");
-   if(!Array.isArray(payload.points)||payload.points.length<2)throw new Error("Il provider non ha restituito uno storico sufficiente.");
-   if(!cancelled){MarketHistory(payload.points);MarketHistoryStatus("ready");}
-  }catch(error){if(!cancelled){MarketHistory([]);MarketHistoryError(error instanceof Error?error.message:"Storico di mercato temporaneamente non disponibile.");MarketHistoryStatus("error");}}
+   if(!response.ok)throw new Error(payload.error||"Quotazioni non disponibili.");
+   if(cancelled)return;
+   const quotes=new Map((payload.quotes||[]).map((q:any)=>[q.isin,q]));
+   F(old=>old.map(p=>{const q:any=quotes.get(p.isin);return q?{...p,price:Number(q.price),change:Number(q.change)||0}:p;}));
+   const failures=(payload.errors||[]).length;
+   if(failures)B("Quotazioni non aggiornate per "+failures+" ETF; mantenuti gli ultimi prezzi disponibili.");
+  }catch(error){if(!cancelled)B(error instanceof Error?error.message:"Aggiornamento quotazioni non riuscito.");}
  };
- void loadMarketHistory();
- return()=>{cancelled=true;};
-},[userEmail,funds.map(p=>p.isin+":"+p.qty).join("|"),firstPortfolioDate]);
+ void loadQuotes();
+ const interval=window.setInterval(()=>void loadQuotes(),5*60*1000);
+ return()=>{cancelled=true;window.clearInterval(interval);};
+},[userEmail,funds.map(p=>p.isin).join("|")]);
 useEffect(()=>{
  if(!userEmail||funds.length===0)return;
  let cancelled=false;
@@ -267,19 +297,19 @@ return <main className="shell"><aside className={"sidebar "+(mobile?"open":"")}>
 {section === "Overview" && (
   <>
     <div className="kpis">
-      <Kpi label="Controvalore stimato" value={total} format={fmt} note="Calcolato con l’ultimo prezzo registrato nei movimenti, non con una quotazione live" />
-      <Kpi label="Capitale investito" value={invested} format={fmt} note="Costo medio delle posizioni" />
+      <Kpi label="Controvalore stimato" value={total} format={fmt} note="Aggiornato con le ultime quotazioni disponibili" />
+      <Kpi label="Capitale investito" value={invested} format={fmt} note="Costo medio effettivo delle quote detenute" />
       <Kpi label="Profitto / perdita" value={profit} format={(n) => (n >= 0 ? "+ " : "") + fmt(n)} note={((profit / (invested || 1)) * 100).toFixed(2) + "%"} />
       <Kpi label="PAC mensile" value={pacMonthlyTotal} format={fmt} note={pacPlans.some(p=>p.active)?"Totale mensile equivalente dei piani attivi":"Nessun PAC attivo"} />
     </div>
     <div className="grid">
       <section className="panel chart">
-        <div className="market-line-heading"><div><span className="eyebrow">MARKET PULSE · PORTFOLIO</span><h2>Andamento del portafoglio</h2><p>Storico aggregato dei prezzi di mercato disponibili per gli ETF in portafoglio.</p></div><span className={"market-line-status "+(marketHistoryStatus==="ready"?"positive":"")}>{marketHistoryStatus==="loading"?"AGGIORNAMENTO":marketHistoryStatus==="ready"?(firstPortfolioDate===null?"MERCATO": "DAL "+new Date(firstPortfolioDate).toLocaleDateString("it-IT")):"DATI NON DISPONIBILI"}</span></div>
+        <div className="market-line-heading"><div><span className="eyebrow">MARKET PULSE · PORTFOLIO</span><h2>Andamento del portafoglio</h2><p>Andamento ricostruito dai movimenti registrati, con il controvalore aggiornato come ultimo dato.</p></div><span className={"market-line-status "+(marketHistoryStatus==="ready"?"positive":"")}>{marketHistoryStatus==="loading"?"AGGIORNAMENTO":marketHistoryStatus==="ready"?(firstPortfolioDate===null?"MERCATO": "DAL "+new Date(firstPortfolioDate).toLocaleDateString("it-IT")):"DATI NON DISPONIBILI"}</span></div>
         <div className="market-line-summary"><div><small>{marketHistoryStatus==="ready"?"ULTIMO VALORE STORICO":"CONTROVALORE STIMATO"}</small><b><AnimatedNumber value={marketHistoryStatus==="ready"?(marketHistory[marketHistory.length-1]?.value||0):total} format={fmt}/></b></div>{marketHistoryStatus==="ready"&&marketHistory.length>1?<div className={"market-line-change "+(marketHistory[marketHistory.length-1].value>=marketHistory[0].value?"up":"down")}><b>{marketHistory[marketHistory.length-1].value>=marketHistory[0].value?"+":"−"}{Math.abs((marketHistory[marketHistory.length-1].value/marketHistory[0].value-1)*100).toLocaleString("it-IT",{maximumFractionDigits:2})}%</b><small>DALL’INIZIO</small></div>:<span className="market-line-meta">{analysisRows.length} ETF · PREZZO ULTIMO MOVIMENTO</span>}</div>
         <div className="market-line-chart">
-          {marketHistoryStatus==="loading"?<div className="market-line-message">Caricamento delle quotazioni storiche…</div>:marketHistoryStatus==="error"?<div className="market-line-message market-line-error"><b>Storico di mercato non disponibile</b><span>{marketHistoryError}</span></div>:marketHistoryStatus==="ready"?<ResponsiveContainer width="100%" height="100%"><AreaChart data={marketHistory} margin={{top:18,right:8,left:0,bottom:0}}><defs><linearGradient id="marketLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={marketHistory[marketHistory.length-1].value>=marketHistory[0].value?"#baf35e":"#ff7777"} stopOpacity={.3}/><stop offset="100%" stopColor={marketHistory[marketHistory.length-1].value>=marketHistory[0].value?"#baf35e":"#ff7777"} stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#ffffff12" vertical={false} strokeDasharray="3 6"/><XAxis dataKey="date" tickFormatter={(v)=>new Date(v+"T12:00:00").toLocaleDateString("it-IT",{month:"short",year:"2-digit"})} minTickGap={30} tick={{fontSize:9,fill:"#aeb0b7"}} tickLine={false} axisLine={false}/><YAxis hide domain={["dataMin","dataMax"]}/><Tooltip labelFormatter={(v)=>new Date(String(v)+"T12:00:00").toLocaleDateString("it-IT",{day:"2-digit",month:"long",year:"numeric"})} formatter={(v)=>money(Number(v))} contentStyle={{background:"#111a17",border:"1px solid #baf35e55",borderRadius:12,color:"#fff"}}/><Area type="monotone" dataKey="value" name="Valore portafoglio" stroke={marketHistory[marketHistory.length-1].value>=marketHistory[0].value?"#caff7d":"#ff7777"} strokeWidth={2.8} fill="url(#marketLineFill)" activeDot={{r:5,stroke:"#fff",strokeWidth:2}} dot={false}/></AreaChart></ResponsiveContainer>:<div className="market-line-message">{funds.length===0?"Aggiungi un ETF al portafoglio per visualizzare l'andamento del mercato.":"Accedi al tuo account per caricare le quotazioni storiche del portafoglio."}</div>}
+          {marketHistoryStatus==="loading"?<div className="market-line-message">Caricamento delle quotazioni storiche…</div>:marketHistoryStatus==="error"?<div className="market-line-message market-line-error"><b>Andamento non ancora disponibile</b><span>{marketHistoryError}</span></div>:marketHistoryStatus==="ready"?<ResponsiveContainer width="100%" height="100%"><AreaChart data={marketHistory} margin={{top:18,right:8,left:0,bottom:0}}><defs><linearGradient id="marketLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={marketHistory[marketHistory.length-1].value>=marketHistory[0].value?"#baf35e":"#ff7777"} stopOpacity={.3}/><stop offset="100%" stopColor={marketHistory[marketHistory.length-1].value>=marketHistory[0].value?"#baf35e":"#ff7777"} stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#ffffff12" vertical={false} strokeDasharray="3 6"/><XAxis dataKey="date" tickFormatter={(v)=>new Date(v+"T12:00:00").toLocaleDateString("it-IT",{month:"short",year:"2-digit"})} minTickGap={30} tick={{fontSize:9,fill:"#aeb0b7"}} tickLine={false} axisLine={false}/><YAxis hide domain={["dataMin","dataMax"]}/><Tooltip labelFormatter={(v)=>new Date(String(v)+"T12:00:00").toLocaleDateString("it-IT",{day:"2-digit",month:"long",year:"numeric"})} formatter={(v)=>money(Number(v))} contentStyle={{background:"#111a17",border:"1px solid #baf35e55",borderRadius:12,color:"#fff"}}/><Area type="monotone" dataKey="value" name="Valore portafoglio" stroke={marketHistory[marketHistory.length-1].value>=marketHistory[0].value?"#caff7d":"#ff7777"} strokeWidth={2.8} fill="url(#marketLineFill)" activeDot={{r:5,stroke:"#fff",strokeWidth:2}} dot={false}/></AreaChart></ResponsiveContainer>:<div className="market-line-message">{funds.length===0?"Aggiungi un ETF al portafoglio per visualizzare l'andamento del mercato.":"Accedi al tuo account per caricare le quotazioni storiche del portafoglio."}</div>}
         </div>
-        <div className="market-line-footer"><span>FONTE: ETF COMPARE · PREZZI DI MERCATO</span><span>{marketHistoryStatus==="ready"?"Ultima rilevazione: "+new Date(marketHistory[marketHistory.length-1].date+"T12:00:00").toLocaleDateString("it-IT"):"Lo storico apparirà quando il provider lo renderà disponibile."}</span></div>
+        <div className="market-line-footer"><span>FONTE: MOVIMENTI DEL TUO PORTAFOGLIO</span><span>{marketHistoryStatus==="ready"?"Ultima rilevazione: "+new Date(marketHistory[marketHistory.length-1].date+"T12:00:00").toLocaleDateString("it-IT"):"I punti storici derivano dalle operazioni registrate; l’ultimo valore usa le quotazioni disponibili."}</span></div>
       </section>
       <section className="panel allocation">
         <div className="panelhead"><div><h2>Composizione</h2><p>Distribuzione indicativa</p></div></div>
