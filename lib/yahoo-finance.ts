@@ -56,3 +56,18 @@ export async function fetchYahooChart(instrument: YahooInstrument, range = "5d",
   const quoteTimeSeconds = Number(meta.regularMarketTime || timestamps.at(-1) || 0);
   return { symbol, currency: String(meta.currency || instrument.currency || "EUR").toUpperCase(), price, quoteTime: quoteTimeSeconds ? new Date(quoteTimeSeconds * 1000).toISOString() : null, marketState: String(meta.marketState || "UNKNOWN").toUpperCase(), points };
 }
+
+export async function convertQuoteToEur(price: number, currency: string): Promise<{ priceEur: number; originalCurrency: string; fxRate: number }> {
+  const originalCurrency = String(currency || "EUR").toUpperCase();
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Prezzo non valido.");
+  if (originalCurrency === "EUR") return { priceEur: price, originalCurrency, fxRate: 1 };
+  const url = new URL("https://api.frankfurter.dev/v1/latest");
+  url.searchParams.set("base", originalCurrency);
+  url.searchParams.set("symbols", "EUR");
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(12000) });
+  if (!response.ok) throw new Error("Cambio " + originalCurrency + "/EUR non disponibile: impossibile valorizzare il portafoglio in euro.");
+  const payload: any = await response.json();
+  const fxRate = Number(payload?.rates?.EUR);
+  if (!Number.isFinite(fxRate) || fxRate <= 0) throw new Error("Tasso " + originalCurrency + "/EUR non valido.");
+  return { priceEur: price * fxRate, originalCurrency, fxRate };
+}
