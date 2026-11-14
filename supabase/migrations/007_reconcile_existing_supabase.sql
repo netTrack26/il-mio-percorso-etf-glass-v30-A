@@ -135,8 +135,9 @@ as $$
     from public.user_roles r
     where r.user_id = (select auth.uid())
       and r.role = 'admin'
-  );
-$$;
+  )
+  and public.is_current_user_active();
+$;
 revoke all on function public.is_current_user_admin() from public, anon;
 grant execute on function public.is_current_user_admin() to authenticated;
 
