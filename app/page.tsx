@@ -304,7 +304,32 @@ async function deletePac(id:string){
  if(error){B("Eliminazione PAC non riuscita: "+error.message);return;}
  PacPlans(old=>old.filter(x=>x.id!==id));
 }
-async function searchPurchaseIsin(){const isin=purchaseIsin.trim().toUpperCase();if(!/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)){PurchaseSearchMessage("Inserisci un ISIN valido di 12 caratteri.");return;}const sb=getSupabaseBrowserClient();if(!sb||!userEmail){B("Accedi per cercare l'ETF nel catalogo.");return;}PurchaseSearchBusy(true);PurchaseSearchMessage("");const {data,error}=await sb.from("etfs").select("isin,ticker,name").eq("isin",isin).maybeSingle();PurchaseSearchBusy(false);if(error){PurchaseSearchMessage("Errore di ricerca: "+error.message);return;}if(!data){PurchaseSearchMessage("ETF non trovato nel catalogo. Aggiungilo prima dalla sezione ETF.");K("");return;}K(data.ticker);PurchaseSearchMessage((data.name||data.ticker)+" · "+data.ticker+" selezionato.");}
+async function searchPurchaseIsin(){
+ const isin=purchaseIsin.trim().toUpperCase();
+ if(!/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)){PurchaseSearchMessage("Inserisci un ISIN valido di 12 caratteri.");return;}
+ if(!userEmail){B("Accedi per cercare e registrare un ETF.");return;}
+ PurchaseSearchBusy(true);PurchaseSearchMessage("");K("");
+ try{
+  const response=await fetch("/api/etf-search?q="+encodeURIComponent(isin),{cache:"no-store"});
+  const payload=await response.json();
+  if(!response.ok)throw new Error(payload?.error||"Ricerca ETF non disponibile.");
+  const found=(Array.isArray(payload.results)?payload.results:[]).find((item:any)=>String(item.isin||"").toUpperCase()===isin);
+  if(!found){PurchaseSearchMessage("ETF non trovato. Verifica l'ISIN o riprova più tardi.");return;}
+  const saveResponse=await fetch("/api/etf-search",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({isin})});
+  const savedPayload=await saveResponse.json();
+  if(!saveResponse.ok)throw new Error(savedPayload?.error||"Impossibile aggiungere l'ETF al catalogo.");
+  const saved=savedPayload.fund||found;
+  const sb=getSupabaseBrowserClient();
+  if(!sb)throw new Error("Connessione Supabase non disponibile.");
+  const {data:catalogRow,error:catalogError}=await sb.from("etfs").select("isin,ticker,name").eq("isin",isin).maybeSingle();
+  if(catalogError)throw new Error("Verifica catalogo non riuscita: "+catalogError.message);
+  if(!catalogRow)throw new Error("ETF recuperato ma non ancora visibile nel catalogo. Riprova tra qualche secondo.");
+  K(catalogRow.ticker||saved.ticker);
+  ExtraFunds(old=>old.some(x=>x.isin===isin)?old:[...old,{isin,ticker:catalogRow.ticker||saved.ticker,name:catalogRow.name||saved.name,qty:0,avg:0,price:0,change:0}]);
+  PurchaseSearchMessage((catalogRow.name||saved.name)+" · "+(catalogRow.ticker||saved.ticker)+" trovato e aggiunto al catalogo. Ora puoi registrare l'acquisto.");
+ }catch(error){PurchaseSearchMessage(error instanceof Error?error.message:"Errore durante la ricerca ETF.");}
+ finally{PurchaseSearchBusy(false);}
+}
 async function save(){
  const n=Number(qty),v=Number(price),c=Number(fee);
  if(!Number.isFinite(n)||!Number.isFinite(v)||!Number.isFinite(c)||n<=0||v<=0||c<0){B("Controlla quantità, prezzo e commissione.");return;}
