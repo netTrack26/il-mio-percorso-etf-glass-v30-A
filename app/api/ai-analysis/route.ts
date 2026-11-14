@@ -23,7 +23,7 @@ async function getSessionClient() {
   return { supabase, user: data.user };
 }
 
-type Holding = { isin: string; ticker: string; name: string; quantity: number; invested: number; currentValue: number; weight: number; pnl: number; quote: { source: string; symbol: string; time: string | null; marketState: string; freshness: "fresh" | "delayed" | "unavailable"; currency: string; originalCurrency: string; fxRate: number } | null; };
+type Holding = { isin: string; ticker: string; name: string; quantity: number; invested: number; currentValue: number; weight: number; pnl: number; quote: { source: string; symbol: string; time: string | null; marketState: string; freshness: "fresh" | "delayed" | "unavailable"; currency: string; originalCurrency: string; fxRate: number | null } | null; };
 
 function localInsights(holdings: Holding[], total: number, invested: number, pacMonthly: number) {
   const top = [...holdings].sort((a,b)=>b.weight-a.weight)[0];
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           holding.currentValue = Number((holding.quantity * converted.priceEur).toFixed(2));
           holding.quote = { source:"Yahoo Finance", symbol:quote.symbol, time:quote.quoteTime, marketState:quote.marketState, freshness, currency:"EUR", originalCurrency:converted.originalCurrency, fxRate:converted.fxRate };
         } catch {
-          holding.quote = { source:"Yahoo Finance", symbol:String(instrument.ticker || holding.ticker), time:null, marketState:"UNAVAILABLE", freshness:"unavailable" };
+          holding.quote = { source:"Yahoo Finance", symbol:String(instrument.ticker || holding.ticker), time:null, marketState:"UNAVAILABLE", freshness:"unavailable", currency:"EUR", originalCurrency:String(instrument.currency || "EUR"), fxRate:null };
         }
       }));
     }
