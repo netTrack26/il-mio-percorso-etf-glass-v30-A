@@ -32,23 +32,30 @@ function euro(value: unknown): string {
 function section(doc: PDFKit.PDFDocument, title: string, text: string) {
   if (!text) return;
   if (doc.y > 700) doc.addPage();
+  doc.x = 48;
   doc.moveDown(0.7);
-  doc.font("Helvetica-Bold").fontSize(11).fillColor("#91BD42").text(title.toUpperCase(), { continued: false });
+  doc.x = 48;
+  doc.font("Helvetica-Bold").fontSize(11).fillColor("#91BD42").text(title.toUpperCase(), { width: 500, continued: false });
   doc.moveDown(0.25);
+  doc.x = 48;
   doc.font("Helvetica").fontSize(9.2).fillColor("#29313A").text(text, { width: 500, lineGap: 3, paragraphGap: 4, align: "left" });
   doc.moveDown(0.35);
 }
 function bulletSection(doc: PDFKit.PDFDocument, title: string, items: unknown[]) {
   if (!items.length) return;
   if (doc.y > 700) doc.addPage();
+  doc.x = 48;
   doc.moveDown(0.7);
-  doc.font("Helvetica-Bold").fontSize(11).fillColor("#91BD42").text(title.toUpperCase());
+  doc.x = 48;
+  doc.font("Helvetica-Bold").fontSize(11).fillColor("#91BD42").text(title.toUpperCase(), { width: 500 });
   doc.moveDown(0.25);
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     const text = clean(item, 100000);
     if (!text) return;
-    doc.font("Helvetica-Bold").fontSize(9).fillColor("#91BD42").text("•", 52, doc.y, { continued: true, width: 12 });
-    doc.font("Helvetica").fontSize(9.1).fillColor("#29313A").text(text, { width: 488, lineGap: 2, paragraphGap: 3 });
+    if (doc.y > 735) doc.addPage();
+    doc.x = 48;
+    doc.font("Helvetica").fontSize(9.1).fillColor("#29313A")
+      .text("•  " + text, { width: 500, lineGap: 2, paragraphGap: 3, indent: 0 });
     doc.moveDown(0.18);
   });
 }
@@ -121,12 +128,14 @@ export async function POST(request: NextRequest) {
     addMetric(doc, 48 + col + gap, y, col, "Valore stimato", current, true);
     addMetric(doc, 48 + (col + gap) * 2, y, col, "Risultato", pnl + " (" + pnlPct + ")");
     addMetric(doc, 48 + (col + gap) * 3, y, col, "ETF attivi", String(holdings.length));
+    doc.x = 48;
     doc.y = y + 75;
     doc.font("Helvetica-Bold").fontSize(8).fillColor("#4D5964").text(
       "ATTENZIONE: il capitale ricostruito è calcolato usando quantità e prezzi di carico inseriti o modificati dall'utente. Non certifica i versamenti realmente effettuati né costituisce uno storico degli acquisti.",
       { width: 500, lineGap: 2 }
     );
     doc.moveDown(0.45);
+    doc.x = 48;
     const terLabel = facts.weightedTerPercent === null || facts.weightedTerPercent === undefined
       ? "TER ponderato: non disponibile"
       : "TER ponderato indicativo: " + Number(facts.weightedTerPercent).toFixed(3).replace(".", ",") + "%";
@@ -139,23 +148,31 @@ export async function POST(request: NextRequest) {
     );
     doc.moveDown(0.6);
 
+    doc.x = 48;
     section(doc, "Sintesi esecutiva", clean(report.executiveSummary));
     section(doc, "Composizione del portafoglio", clean(report.portfolioComposition));
     if (holdings.length) {
       if (doc.y > 650) doc.addPage();
+      doc.x = 48;
       doc.moveDown(0.25);
-      doc.font("Helvetica-Bold").fontSize(11).fillColor("#91BD42").text("POSIZIONI E QUOTAZIONI");
+      doc.x = 48;
+      doc.font("Helvetica-Bold").fontSize(11).fillColor("#91BD42").text("POSIZIONI E QUOTAZIONI", { width: 500 });
       doc.moveDown(0.35);
       holdings.forEach((h:any) => {
+        if (doc.y > 735) doc.addPage();
+        doc.x = 48;
         const quote = h.quote || {};
         const weight = Number.isFinite(Number(h.weight)) ? Number(h.weight).toFixed(2).replace(".", ",") + "%" : "n.d.";
         const ter = h.ter === null || h.ter === undefined ? "TER n.d." : "TER " + String(h.ter).replace(".", ",") + "%";
+        doc.x = 48;
         doc.font("Helvetica-Bold").fontSize(9.3).fillColor("#202830").text(clean(h.ticker, 32) + "  ·  " + clean(h.name, 180), { width: 500 });
+        doc.x = 48;
         doc.font("Helvetica").fontSize(8).fillColor("#5B6570").text("ISIN " + clean(h.isin, 20) + "  |  Peso " + weight + "  |  Valore " + euro(h.currentValue) + "  |  Investito " + euro(h.invested) + "  |  " + ter, { width: 500 });
         const quoteStatus = quote.freshness === "fresh" ? "timestamp recente" : quote.freshness === "delayed" ? "quotazione datata" : "prezzo non disponibile";
         const fxLabel = quote.fxRate === null || quote.fxRate === undefined
           ? "cambio n.d."
           : "1 " + clean(quote.originalCurrency || "EUR") + " = " + Number(quote.fxRate).toFixed(6) + " EUR";
+        doc.x = 48;
         doc.font("Helvetica").fontSize(8).fillColor("#5B6570").text("Fonte: " + clean(quote.source || "n.d.") + " · Simbolo: " + clean(quote.symbol || "n.d.") + " · " + quoteStatus + " · " + (quote.time ? new Date(quote.time).toLocaleString("it-IT", { timeZone: "Europe/Rome" }) : "nessun timestamp") + " · " + fxLabel, { width: 500 });
         doc.moveDown(0.45);
       });
