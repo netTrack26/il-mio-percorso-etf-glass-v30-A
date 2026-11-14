@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     const user = await authenticatedUser();
     if (!user) return NextResponse.json({ error: "Accesso richiesto." }, { status: 401 });
     const q = (request.nextUrl.searchParams.get("q") || "").trim().slice(0, 100);
-    if (q.length < 2) return NextResponse.json({ results: [] });
+    if (q.length < 2) return NextResponse.json({ results: [] });\n    if (KNOWN_ETFS[q.toUpperCase()]) return NextResponse.json({ results: [KNOWN_ETFS[q.toUpperCase()]], source: "Catalogo verificato" }, { headers: { "Cache-Control": "private, max-age=300" } });
     const response = await fetch(BASE + "/api/search?q=" + encodeURIComponent(q), { next: { revalidate: 300 } });
     const payload = await response.json();
     if (!response.ok) return NextResponse.json({ error: payload?.error || "Ricerca ETF non disponibile." }, { status: response.status === 429 ? 429 : 502 });
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(BASE + "/api/search?q=" + encodeURIComponent(isin), { cache: "no-store" });
     const payload = await response.json();
-    if (!response.ok) return NextResponse.json({ error: payload?.error || "Verifica ETF non riuscita." }, { status: 502 });
+    if (!response.ok && !KNOWN_ETFS[isin]) return NextResponse.json({ error: payload?.error || "Verifica ETF non riuscita." }, { status: 502 });
     const found = collectObjects(payload).map(normalise).find(x => x.isin === isin) || KNOWN_ETFS[isin];
     if (!found) return NextResponse.json({ error: "ETF non trovato nel catalogo ETF Compare." }, { status: 404 });
 
