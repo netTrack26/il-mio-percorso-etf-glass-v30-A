@@ -8,6 +8,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null);
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const inviteCode = typeof body?.inviteCode === "string" ? body.inviteCode.trim() : "";
+    const legalAccepted = body?.legalAccepted === true;
+    if (!legalAccepted) return NextResponse.json({ error: "Conferma prima Termini e Informativa Privacy." }, { status: 400 });
     if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) {
       return NextResponse.json({ error: "Inserisci un indirizzo email valido." }, { status: 400 });
     }
