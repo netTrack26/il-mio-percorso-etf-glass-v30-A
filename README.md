@@ -14,6 +14,16 @@ La migrazione è transazionale e ripetibile. Non elimina né riscrive le operazi
 
 Non eseguire 003, 005 o 006 separatamente dopo 007. Non creare manualmente una tabella `schema_migrations` solo per far apparire una cronologia.
 
+## Attivazione Portfolio Intelligence look-through
+
+Dopo aver verificato che la migrazione 007 sia già stata applicata, esegui una sola volta \`supabase/migrations/008_etf_lookthrough_intelligence.sql\` nel SQL Editor Supabase. La migrazione aggiunge snapshot condivisi del catalogo ETF, holdings, allocazioni per Paese e settore e metadati estesi; non modifica movimenti, PAC o dati personali dei portafogli.
+
+Per sincronizzare i dati, configura \`FMP_API_KEY\` in Vercel, esegui un nuovo deployment e accedi come amministratore alla sezione Catalogo della dashboard Admin. Usa il pannello “Portfolio Intelligence · Dati sottostanti” per sincronizzare un ISIN specifico oppure i primi 25 ETF del catalogo. La sincronizzazione usa il ticker presente nel catalogo: per strumenti UCITS quotati su più borse verifica che il simbolo sia supportato dal provider. I dati non disponibili non vengono inventati.
+
+Le API FMP documentano endpoint distinti per holdings (\`/stable/etf/holdings\`), informazioni ETF (\`/stable/etf/info\`), allocazione geografica (\`/stable/etf/country-weightings\`) e settoriale (\`/stable/etf/sector-weightings\`). Copertura e diritti di utilizzo dipendono dal contratto del provider. Prima della pubblicazione commerciale verifica copertura degli ISIN UCITS europei, limiti di chiamata e licenza di redistribuzione.
+
+L'analisi AI aggrega le esposizioni usando il peso corrente di ogni ETF nel portafoglio e i pesi interni dello snapshot. L'overlap è calcolato per ISIN del titolo, poi per simbolo/nome quando l'ISIN non è fornito: in quest'ultimo caso la corrispondenza può essere meno affidabile. Il punteggio 0–100 è un indice descrittivo proprietario basato su HHI, non un rating regolamentare o una raccomandazione personalizzata.
+
 ## Installazione per un progetto Supabase completamente nuovo
 
 Solo per un progetto vuoto, esegui in ordine:
@@ -31,7 +41,8 @@ Configura almeno:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` — solo server, necessaria all'API di ricerca/salvataggio ETF e all'invio degli inviti Beta
 - `BETA_INVITE_CODE` — codice condiviso con il gruppo Telegram; solo server, mai usare il prefisso `NEXT_PUBLIC_`
-- `OPENAI_API_KEY` — solo server, necessaria per l'analisi AI
+- \`OPENAI_API_KEY\` — solo server, necessaria per l'analisi AI
+- \`FMP_API_KEY\` — facoltativa, solo server; abilita holdings, allocazioni geografiche/settoriali e metadati tramite Financial Modeling Prep. L'endpoint holdings richiede un piano che includa ETF & Fund Holdings; verifica prezzi, copertura UCITS e diritti di visualizzazione/redistribuzione prima di attivare un piano.
 
 Facoltativa:
 - `OPENAI_ANALYSIS_MODEL` — se assente viene usato il modello predefinito configurato nel codice.
