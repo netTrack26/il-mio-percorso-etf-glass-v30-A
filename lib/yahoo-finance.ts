@@ -2,7 +2,7 @@ export type YahooInstrument = { isin: string; ticker: string; exchange?: string 
 export type YahooPoint = { date: string; price: number };
 export type YahooChart = { symbol: string; currency: string; price: number; quoteTime: string | null; marketState: string; points: YahooPoint[] };
 
-export function yahooSymbol(instrument: YahooInstrument): string | null {
+export function yahooSymbols(instrument: YahooInstrument): string[] {
   const raw = String(instrument.ticker || "").trim().toUpperCase();
   if (!raw) return null;
   if (raw.includes(".")) return raw;
