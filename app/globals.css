@@ -458,3 +458,9 @@ button.premium-feature:focus-visible{outline:2px solid #baf35e;outline-offset:3p
 @keyframes fire-globe-rotate{to{transform:rotate(360deg)}}
 @media(max-width:700px){.ai-quote-row{grid-template-columns:minmax(0,1fr) auto;gap:7px}.ai-quote-row time{grid-column:1/-1}.ai-quote-audit-head{align-items:flex-start;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.ai-hero-icon,.ai-hero-icon::before,.ai-hero-icon::after,.ai-hero-icon>svg,.fire-network-sphere svg{animation:none!important;transform:none!important}}
+
+.ai-result-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ai-pdf-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 13px;border:1px solid #baf35e77;border-radius:9px;background:linear-gradient(120deg,#baf35e22,#ffffff08);color:#d7ff99;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap}
+.ai-pdf-button:disabled{opacity:.55;cursor:wait}
+.ai-pdf-button:hover:not(:disabled){background:#baf35e2d;border-color:#d5ff89}
+@media(max-width:700px){.ai-result-actions{width:100%;align-items:flex-start;flex-direction:column;gap:9px}.ai-pdf-button{width:100%}}
