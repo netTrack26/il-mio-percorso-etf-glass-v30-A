@@ -406,3 +406,23 @@ button.premium-feature:focus-visible{outline:2px solid #baf35e;outline-offset:3p
 .ai-empty p{max-width:450px;color:#a8aab1;font-size:10px;line-height:1.6;margin:0}
 @media(max-width:900px){.ai-metrics-grid{grid-template-columns:1fr 1fr}.ai-next-steps{grid-template-columns:1fr}}
 @media(max-width:700px){.ai-hero{grid-template-columns:1fr;padding:19px}.ai-hero-icon{width:112px;height:112px}.ai-run-card{grid-template-columns:1fr;padding:16px}.ai-run-card .primary{width:100%}.ai-result-card{padding:16px}.ai-two-columns{grid-template-columns:1fr}.ai-metrics-grid{gap:8px}.ai-metric{padding:11px}.ai-metric b{font-size:15px}.ai-result-meta{align-items:flex-start;flex-direction:column}}
+
+/* AI report: rendering semantico del Markdown restituito dal modello */
+.ai-markdown{display:grid;gap:0;margin-top:15px;max-width:100%;color:#d4d6dc;font-size:11px;line-height:1.8;overflow-wrap:anywhere}
+.ai-md-heading{margin:17px 0 7px;color:#d5ff91;font:800 12px Manrope,sans-serif;letter-spacing:.6px}
+.ai-md-heading:first-child{margin-top:0}
+.ai-md-h1{font-size:16px;letter-spacing:-.2px}
+.ai-md-h2{font-size:14px}
+.ai-md-h3,.ai-md-h4{font-size:11px;text-transform:uppercase}
+.ai-md-paragraph{margin:0 0 10px;color:#d0d2d8;font-size:11px;line-height:1.85}
+.ai-md-paragraph:last-child{margin-bottom:0}
+.ai-md-list{display:grid;gap:8px;margin:2px 0 12px;padding-left:21px;color:#c9cbd1}
+.ai-md-list li{padding-left:3px;font-size:10px;line-height:1.75}
+.ai-md-list li::marker{color:#cfff82;font-weight:800}
+.ai-md-ordered li::marker{font-variant-numeric:tabular-nums}
+.ai-markdown strong{color:#f4f6ee;font-weight:800}
+.ai-markdown em{color:#d7ff9d}
+.ai-markdown code{padding:2px 5px;border:1px solid #ffffff1c;border-radius:5px;background:#ffffff0a;color:#d7ff9d;font-size:.92em}
+.ai-md-divider{height:1px;margin:8px 0 12px;background:linear-gradient(90deg,#baf35e55,#ffffff12,transparent)}
+.ai-analysis-text{margin:14px 0 0;color:#d0d1d5;font-size:11px;line-height:1.85;white-space:pre-wrap}
+@media(max-width:700px){.ai-markdown{font-size:10px}.ai-md-paragraph{font-size:10px}.ai-md-list li{font-size:9px}.ai-md-heading{margin-top:14px}}
