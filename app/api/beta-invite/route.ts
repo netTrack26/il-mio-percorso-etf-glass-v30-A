@@ -86,10 +86,20 @@ export async function POST(request: NextRequest) {
         message: error.message,
         cause: causeDetails
       });
-      const message = /already|registered|exists/i.test(error.message)
-        ? "Esiste già un account con questa email. Prova ad accedere."
-        : "Non è stato possibile inviare l’invito. Riprova più tardi.";
-      return NextResponse.json({ error: message }, { status: 400 });
+      if (/already|registered|exists/i.test(error.message)) {
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+        if (!anonKey) {
+          return NextResponse.json({ error: "L'account esiste già. Configurazione recupero password incompleta: contatta l'amministratore." }, { status: 409 });
+        }
+        const recovery = createClient(supabaseUrl, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
+        const { error: recoveryError } = await recovery.auth.resetPasswordForEmail(email, { redirectTo });
+        if (recoveryError) {
+          console.error("[beta-invite] Existing-account recovery email failed:", { status: recoveryError.status, message: recoveryError.message });
+          return NextResponse.json({ error: "L'account esiste già, ma non siamo riusciti a inviare il link per impostare una password. Riprova tra poco." }, { status: 502 });
+        }
+        return NextResponse.json({ ok: true, recovery: true });
+      }
+      return NextResponse.json({ error: "Non è stato possibile inviare l’invito. Riprova più tardi." }, { status: 400 });
     }
     return NextResponse.json({ ok: true });
   } catch {
