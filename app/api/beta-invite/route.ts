@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
     if (!inviteCode || inviteCode.length > 128 || inviteCode !== expectedCode) {
       return NextResponse.json({ error: "Codice invito non valido." }, { status: 403 });
     }
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: "Configurazione server incompleta." }, { status: 503 });
+    }
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
