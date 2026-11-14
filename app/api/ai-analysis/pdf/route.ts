@@ -181,6 +181,12 @@ export async function POST(request: NextRequest) {
     if (look && look.available) {
       section(doc, "Analisi look-through e copertura", "Copertura del portafoglio: " + Number(look.portfolioCoverageWeightPercent || 0).toFixed(2) + "%. Snapshot: " + (look.snapshots || []).map((x:any)=>clean(x.isin) + " al " + clean(x.asOf)).join("; ") + ". Il punteggio di diversificazione è un indice descrittivo proprietario e non un rating standard.");
       const companyLines = (look.topCompanies || []).map((x:any)=>clean(x.name,100) + (x.symbol ? " (" + clean(x.symbol,20) + ")" : "") + ": " + Number(x.portfolioWeightPercent || 0).toFixed(2).replace(".",",") + "% del portafoglio");
+      for (const [isin, items] of Object.entries(look.topCompaniesByEtf || {})) {
+        const fund = (facts.holdings || []).find((h:any)=>h.isin===isin);
+        const fundLabel = fund ? clean(fund.ticker,24) : clean(isin,20);
+        const lines = (items as any[]).map((x:any)=>clean(x.name,100) + (x.symbol ? " (" + clean(x.symbol,20) + ")" : "") + ": " + Number(x.weightPercent || 0).toFixed(2).replace(".",",") + "%" + (x.sector ? " · " + clean(x.sector,60) : "") + (x.country ? " · " + clean(x.country,50) : ""));
+        bulletSection(doc, "Prime 10 partecipazioni · " + fundLabel, lines);
+      }
       bulletSection(doc, "Prime 10 aziende per esposizione effettiva", companyLines);
       const overlapLines = (look.overlappingCompanies || []).map((x:any)=>clean(x.name,100) + ": " + Number(x.portfolioWeightPercent || 0).toFixed(2).replace(".",",") + "% complessivo · " + (x.funds || []).join(", "));
       bulletSection(doc, "Aziende presenti in più ETF", overlapLines);
