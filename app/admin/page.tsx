@@ -19,7 +19,7 @@ const errText=(e:any)=>e?.message||"Operazione non riuscita";
 export default function AdminPage(){
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[email,setEmail]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [data,setData]=useState<Dashboard|null>(null),[search,setSearch]=useState(""),[tab,setTab]=useState<"overview"|"users"|"catalog"|"premium">("overview");
- const [etf,setEtf]=useState<ETF>({isin:"",ticker:"",name:"",issuer:"",currency:"EUR",ongoing_charges:null});
+ const [etf,setEtf]=useState<ETF>({isin:"",ticker:"",name:"",issuer:"",currency:"EUR",ongoing_charges:null});\n const [catalogQuery,setCatalogQuery]=useState("");\n const [catalogResults,setCatalogResults]=useState<Array<{isin:string;ticker:string;name:string;issuer?:string;currency?:string;exchange?:string}>>([]);\n const [catalogSearching,setCatalogSearching]=useState(false);
  const [editing,setEditing]=useState(false),[premiumEnabled,setPremiumEnabled]=useState(false),[premiumLabel,setPremiumLabel]=useState("In arrivo"),[premiumDescription,setPremiumDescription]=useState("Funzioni avanzate in preparazione");
 
  const load=useCallback(async()=>{
@@ -57,6 +57,25 @@ export default function AdminPage(){
     setNotice(success);await load();
    } catch(e) { setNotice("Errore: "+errText(e)); }
    finally { setBusy(false); }
+ };
+ const searchCatalogETF=async()=>{
+   const q=catalogQuery.trim();
+   if(q.length<2){setNotice("Inserisci almeno 2 caratteri: ISIN, ticker o nome ETF.");return;}
+   setCatalogSearching(true);setNotice("");setCatalogResults([]);
+   try{
+    const response=await fetch("/api/etf-search?q="+encodeURIComponent(q),{cache:"no-store"});
+    const payload=await response.json();
+    if(!response.ok)throw new Error(payload?.error||"Ricerca ETF non disponibile.");
+    const results=Array.isArray(payload.results)?payload.results:[];
+    setCatalogResults(results);
+    if(results.length===0)setNotice("Nessun ETF trovato. Prova con l'ISIN completo o il ticker.");
+   }catch(e){setNotice("Errore ricerca: "+errText(e));}
+   finally{setCatalogSearching(false);}
+ };
+ const chooseCatalogETF=(x:{isin:string;ticker:string;name:string;issuer?:string;currency?:string})=>{
+   setEtf({isin:x.isin,ticker:x.ticker,name:x.name,issuer:x.issuer||"",currency:x.currency||"EUR",ongoing_charges:null});
+   setCatalogResults([]);
+   setNotice("Dati ETF recuperati. Controlla i campi e premi Aggiungi al catalogo.");
  };
  const saveETF=async()=>{
    if(!etf.isin||!etf.ticker||!etf.name){setNotice("Inserisci ISIN, ticker e nome.");return;}
@@ -106,9 +125,14 @@ export default function AdminPage(){
      </tbody></table></div><p style={{fontSize:10,color:"#8d8f97",lineHeight:1.6}}>La sospensione blocca l'accesso ai dati protetti dalla piattaforma tramite RLS. Non elimina l'account né i movimenti finanziari dell'utente.</p>
     </section>}
     {tab==="catalog"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(270px,1fr))",gap:13,alignItems:"start"}}>
-     <section style={panel}><h2 style={{fontSize:17,margin:"0 0 6px"}}>{editing?"Modifica ETF":"Aggiungi ETF"}</h2><p style={{fontSize:11,color:"#a5a6ad"}}>Catalogo condiviso con tutti gli iscritti</p>
-      {[["ISIN","isin"],["Ticker","ticker"],["Nome ETF","name"],["Emittente","issuer"],["Valuta","currency"],["TER (%)","ongoing_charges"]].map(([label,key])=><label key={key} style={{display:"block",fontSize:11,color:"#bfc0c6",marginTop:12}}>{label}<input style={{...field,marginTop:6}} value={String((etf as any)[key]??"")} onChange={e=>setEtf(v=>({...v,[key]:key==="ongoing_charges"?(e.target.value===""?null:Number(e.target.value)):key==="isin"||key==="ticker"?e.target.value.toUpperCase():e.target.value}))} disabled={editing&&key==="isin"} /></label>)}
-      <div style={{display:"flex",gap:8,marginTop:16}}><button disabled={busy} style={button(true)} onClick={()=>void saveETF()}>{busy?"Salvataggio…":"Salva ETF"}</button>{editing&&<button style={button()} onClick={()=>{setEditing(false);setEtf({isin:"",ticker:"",name:"",issuer:"",currency:"EUR",ongoing_charges:null});}}>Annulla</button>}</div>
+     <section style={panel}><h2 style={{fontSize:17,margin:"0 0 6px"}}>{editing?"Modifica ETF":"Aggiungi ETF"}</h2><p style={{fontSize:11,color:"#a5a6ad",lineHeight:1.6}}>Cerca per ISIN, ticker o nome. La piattaforma recupera automaticamente i dati disponibili: non devi compilare manualmente ogni campo.</p>
+      {!editing&&<div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap"}}><input style={{...field,flex:"1 1 210px"}} placeholder="Es. IE00B53SZB19, CSNDX, Nasdaq 100" value={catalogQuery} onChange={e=>setCatalogQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")void searchCatalogETF();}}/><button disabled={catalogSearching} style={button(true)} onClick={()=>void searchCatalogETF()}>{catalogSearching?"Ricerca…":"Cerca ETF"}</button></div>}
+      {catalogResults.length>0&&<div style={{marginTop:12,border:"1px solid #ffffff22",borderRadius:11,overflow:"hidden"}}>{catalogResults.map((x,i)=><button key={x.isin||i} onClick={()=>chooseCatalogETF(x)} style={{display:"block",width:"100%",textAlign:"left",padding:12,background:"#ffffff08",border:0,borderBottom:"1px solid #ffffff15",color:"#f4f4f5",cursor:"pointer"}}><b style={{fontSize:12,color:"#d5ff89"}}>{x.ticker} · {x.isin}</b><div style={{fontSize:11,marginTop:4}}>{x.name}</div><div style={{fontSize:10,color:"#a5a6ad",marginTop:3}}>{[x.issuer,x.currency,x.exchange].filter(Boolean).join(" · ")}</div></button>)}</div>}
+      <div style={{marginTop:16,padding:13,borderRadius:11,background:"#ffffff08",border:"1px solid #ffffff14"}}>
+       <div style={{fontSize:10,color:"#cfff80",letterSpacing:1,fontWeight:700,marginBottom:10}}>DATI ETF {etf.isin?"RECUPERATI":"SELEZIONATO"}</div>
+       {etf.isin?<><b style={{fontSize:14}}>{etf.name}</b><div style={{fontSize:11,color:"#a5a6ad",marginTop:6}}>{etf.ticker} · {etf.isin} · {etf.issuer||"Emittente non specificato"} · {etf.currency}</div><label style={{display:"block",fontSize:11,color:"#bfc0c6",marginTop:14}}>TER (%) · facoltativo<input style={{...field,marginTop:6}} type="number" min="0" step="0.01" placeholder="Lascia vuoto se non verificato" value={etf.ongoing_charges??""} onChange={e=>setEtf(v=>({...v,ongoing_charges:e.target.value===""?null:Number(e.target.value)}))}/></label><div style={{display:"flex",gap:8,marginTop:13,flexWrap:"wrap"}}><button disabled={busy} style={button(true)} onClick={()=>void saveETF()}>{busy?"Salvataggio…":"Aggiungi al catalogo"}</button><button style={button()} onClick={()=>{setEditing(false);setEtf({isin:"",ticker:"",name:"",issuer:"",currency:"EUR",ongoing_charges:null});}}>Annulla</button></div></>:<div style={{fontSize:11,color:"#a5a6ad"}}>Nessun ETF selezionato. Effettua una ricerca per iniziare.</div>}
+      </div>
+      {editing&&<button style={button()} onClick={()=>{setEditing(false);setEtf({isin:"",ticker:"",name:"",issuer:"",currency:"EUR",ongoing_charges:null});}}>Esci dalla modifica</button>}
      </section>
      <section style={panel}><h2 style={{fontSize:17,margin:"0 0 12px"}}>ETF presenti · {data.catalog.length}</h2><div style={{maxHeight:620,overflowY:"auto"}}>{catalogItems.map(x=><div key={x.isin} style={{padding:"12px 0",borderBottom:"1px solid #ffffff17",display:"flex",gap:8,alignItems:"center"}}><div style={{flex:1,minWidth:0}}><b style={{fontSize:12}}>{x.ticker||x.isin}</b><div style={{fontSize:10,color:"#a5a6ad",overflowWrap:"anywhere"}}>{x.name} · {x.isin}</div></div><button style={button()} onClick={()=>{setEtf(x);setEditing(true);window.scrollTo({top:0,behavior:"smooth"});}}>Modifica</button><button style={{...button(),color:"#ffaaaa"}} onClick={()=>{if(confirm("Eliminare "+x.ticker+" dal catalogo? Se è già usato da utenti il database impedirà la cancellazione."))void action("admin_delete_etf",{p_isin:x.isin},"ETF eliminato.");}}>Elimina</button></div>)}</div></section>
     </div>}
