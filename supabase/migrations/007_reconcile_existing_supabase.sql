@@ -105,7 +105,7 @@ drop policy if exists "Users can restore own portfolio positions" on public.port
 create policy "Users can read own hidden portfolio positions"
   on public.portfolio_hidden_positions for select to authenticated
   using (auth.uid() = user_id and public.is_current_user_active());
-create policy "Users can hide own hidden portfolio positions"
+create policy "Users can hide own portfolio positions"
   on public.portfolio_hidden_positions for insert to authenticated
   with check (auth.uid() = user_id and public.is_current_user_active());
 create policy "Users can update own hidden portfolio positions"
