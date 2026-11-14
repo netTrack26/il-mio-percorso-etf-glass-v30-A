@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useState,type ReactNode} from "react";
 import {Activity,ArrowUpRight,Bell,ChartNoAxesCombined,ChevronDown,Crown,Eye,EyeOff,FileSpreadsheet,Globe2,LayoutDashboard,Menu,Plus,Search,Settings,ShieldCheck,Sparkles,Star,Wallet,X} from "lucide-react";
 import FirePortfolio from "./components/FirePortfolio";
 import {Area,AreaChart,Bar,BarChart,CartesianGrid,Cell,Pie,PieChart,ResponsiveContainer,Tooltip,XAxis,YAxis} from "recharts";
@@ -10,6 +10,58 @@ const catalog:Fund[]=[];
 const money=(n:number)=>n.toLocaleString("it-IT",{style:"currency",currency:"EUR"});
 const history:{d:string,v:number}[]=[];
 function NeonBar3D(props:any){const{x,y,width,height,fill="#baf35e"}=props;const depth=Math.min(10,Math.max(5,width*.18));const rise=Math.min(9,Math.max(4,width*.14));if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(width)||!Number.isFinite(height))return null;return <g className="neon-bar-3d"><polygon points={`${x},${y} ${x+depth},${y-rise} ${x+width+depth},${y-rise} ${x+width},${y}`} fill="#e1ffad" opacity=".92"/><polygon points={`${x+width},${y} ${x+width+depth},${y-rise} ${x+width+depth},${y+height-rise} ${x+width},${y+height}`} fill="#5d9631"/><rect x={x} y={y} width={width} height={height} rx="3" fill={fill} stroke="#e2ffad" strokeWidth="1"/><rect x={x+2} y={y+2} width={Math.max(1,width-4)} height="3" rx="2" fill="#f3ffd8" opacity=".65"/></g>}
+function renderAiInline(value:string):ReactNode[]{
+ return value.split(/(\\*\\*[^*]+\\*\\*|\\*[^*]+\\*|`[^`]+`)/g).filter(Boolean).map((part,index)=>{
+  if(part.startsWith("**")&&part.endsWith("**"))return <strong key={index}>{part.slice(2,-2)}</strong>;
+  if(part.startsWith("*")&&part.endsWith("*"))return <em key={index}>{part.slice(1,-1)}</em>;
+  if(part.startsWith("`")&&part.endsWith("`"))return <code key={index}>{part.slice(1,-1)}</code>;
+  return part;
+ });
+}
+function renderAiMarkdown(source:string):ReactNode[]{
+ const lines=String(source||"").replace(/\\r\\n?/g,"\\n").split("\\n");
+ const blocks:ReactNode[]=[];
+ let paragraph:string[]=[];
+ let listItems:string[]=[];
+ let listType:"ul"|"ol"|null=null;
+ const flushParagraph=()=>{
+  if(!paragraph.length)return;
+  blocks.push(<p className="ai-md-paragraph" key={"p-"+blocks.length}>{renderAiInline(paragraph.join(" "))}</p>);
+  paragraph=[];
+ };
+ const flushList=()=>{
+  if(!listType||!listItems.length){listItems=[];listType=null;return;}
+  const items=listItems;
+  const type=listType;
+  blocks.push(type==="ul"
+   ? <ul className="ai-md-list" key={"ul-"+blocks.length}>{items.map((item,index)=><li key={index}>{renderAiInline(item)}</li>)}</ul>
+   : <ol className="ai-md-list ai-md-ordered" key={"ol-"+blocks.length}>{items.map((item,index)=><li key={index}>{renderAiInline(item)}</li>)}</ol>);
+  listItems=[];
+  listType=null;
+ };
+ for(const rawLine of lines){
+  const line=rawLine.trim();
+  if(!line){flushParagraph();flushList();continue;}
+  const heading=line.match(/^(#{1,4})\\s+(.+)$/);
+  if(heading){flushParagraph();flushList();blocks.push(<h4 className={"ai-md-heading ai-md-h"+heading[1].length} key={"h-"+blocks.length}>{renderAiInline(heading[2])}</h4>);continue;}
+  if(/^(-{3,}|\\*{3,}|_{3,})$/.test(line)){flushParagraph();flushList();blocks.push(<div className="ai-md-divider" key={"d-"+blocks.length}/>);continue;}
+  const unordered=line.match(/^[-*]\\s+(.+)$/);
+  const ordered=line.match(/^\\d+[.)]\\s+(.+)$/);
+  if(unordered||ordered){
+   flushParagraph();
+   const nextType=unordered?"ul":"ol";
+   if(listType&&listType!==nextType)flushList();
+   listType=nextType;
+   listItems.push((unordered||ordered)![1]);
+   continue;
+  }
+  flushList();
+  paragraph.push(line);
+ }
+ flushParagraph();
+ flushList();
+ return blocks;
+}
 export default function Home(){
 const [section,S]=useState("Overview"),[mobile,M]=useState(false),[hidden,H]=useState(false),[query,Q]=useState(""),[selectedFund,SelectFund]=useState<Fund|null>(null),[funds,F]=useState(initial),[tx,T]=useState<{id:number,isin:string,ticker:string,qty:number,price:number,fee:number,date:string,timestamp?:number,type?:string}[]>([]),[modal,D]=useState(false),[ticker,K]=useState(""),[purchaseIsin,PurchaseIsin]=useState(""),[purchaseSearchBusy,PurchaseSearchBusy]=useState(false),[purchaseSearchMessage,PurchaseSearchMessage]=useState(""),[qty,Y]=useState("1"),[price,Z]=useState("127.50"),[fee,E]=useState("6.50"),[toast,B]=useState(""),[authOpen,AuthOpen]=useState(false),[email,Email]=useState(""),[password,Password]=useState(""),[userEmail,UserEmail]=useState<string|null>(null),[authBusy,AuthBusy]=useState(false),[authMode,AuthMode]=useState<"login"|"signup">("login"),[cloudReady,CloudReady]=useState(false),[extraFunds,ExtraFunds]=useState<Fund[]>([]),[newEtfOpen,NewEtfOpen]=useState(false),[newTicker,NewTicker]=useState(""),[newIsin,NewIsin]=useState(""),[newName,NewName]=useState(""),[newIssuer,NewIssuer]=useState(""),[isinSearchBusy,IsinSearchBusy]=useState(false),[isinSearchMessage,IsinSearchMessage]=useState("");const [watchlist,Watchlist]=useState<{isin:string;ticker:string;name:string}[]>([]),[pacPlans,PacPlans]=useState<{id:string;isin:string;ticker:string;name:string;amount:number;frequency:string;active:boolean;day_of_month:number|null}[]>([]),[pacIsin,PacIsin]=useState(""),[pacAmount,PacAmount]=useState("250"),[pacFrequency,PacFrequency]=useState("monthly"),[pacDay,PacDay]=useState("1"),[pacSearch,PacSearch]=useState(""),[pacResults,PacResults]=useState<{isin:string;ticker:string;name:string;issuer:string;currency:string;exchange:string;coverage:string}[]>([]),[pacSearchBusy,PacSearchBusy]=useState(false),[pacSearchError,PacSearchError]=useState(""),[hiddenPositions,HiddenPositions]=useState<string[]>([]),[marketHistory,MarketHistory]=useState<{date:string;value:number}[]>([]),[marketHistoryStatus,MarketHistoryStatus]=useState<"idle"|"loading"|"ready"|"error">("idle"),[marketHistoryError,MarketHistoryError]=useState(""),[adjustingFund,AdjustingFund]=useState<Fund|null>(null),[adjustQuantity,AdjustQuantity]=useState(""),[adjustBusy,AdjustBusy]=useState(false);
 const [stressCapital,StressCapital]=useState(""),[stressDrawdown,StressDrawdown]=useState(25),[projectionMonthly,ProjectionMonthly]=useState("250"),[projectionYears,ProjectionYears]=useState("10"),[projectionReturn,ProjectionReturn]=useState(5);
@@ -358,7 +410,7 @@ return <main className="shell"><aside className={"sidebar "+(mobile?"open":"")}>
  <section className="panel ai-hero"><div><span className="eyebrow">INTELLIGENZA ARTIFICIALE · PORTAFOGLIO</span><h2>AI <em>Analysis</em></h2><p>Calcoli trasparenti sui tuoi movimenti, interpretati dall'intelligenza artificiale quando il servizio è configurato. Nessuna operazione viene eseguita sul broker.</p><div className="ai-hero-tags"><span><ShieldCheck size={13}/> Dati del tuo account</span><span><Sparkles size={13}/> Analisi ibrida</span><span><Activity size={13}/> Nessun ordine automatico</span></div></div><div className="ai-hero-icon"><Sparkles size={38}/><b>AI INSIGHTS</b><small>PORTFOLIO INTELLIGENCE</small></div></section>
  <section className="panel ai-run-card"><div><span className="eyebrow">ANALISI SU RICHIESTA</span><h3>Analizza il tuo portafoglio</h3><p>Legge le operazioni e i piani PAC del tuo account. I calcoli quantitativi restano interni; l'AI aggiunge interpretazione e spiegazioni.</p></div><button className="primary" onClick={runAIAnalysis} disabled={aiStatus==="loading"||!userEmail}><Sparkles size={16}/>{aiStatus==="loading"?"Analisi in corso…":"Avvia AI Analysis"}</button>{!userEmail&&<small className="ai-muted">Accedi per utilizzare l'analisi personale.</small>}{aiError&&<div className="ai-error">{aiError}</div>}</section>
  {aiReport&&<><div className="ai-result-meta"><span className="ai-mode"><i/>{aiReport.mode==="ai"?"OPENAI AI + CALCOLI INTERNI":"CALCOLI INTERNI · MODALITÀ BASE"}</span><small>Generata il {new Date(aiReport.generatedAt).toLocaleString("it-IT")}</small></div>
- <section className="panel ai-result-card"><div className="ai-result-heading"><div><span className="eyebrow">01 · SINTESI</span><h3>{aiReport.mode==="ai"?"Lettura intelligente del portafoglio":aiReport.summary}</h3></div><Sparkles color="#baf35e"/></div>{aiReport.analysis?<p className="ai-analysis-text">{aiReport.analysis}</p>:<div className="ai-insight-list">{(aiReport.attention||[]).map((item:string,i:number)=><div className="ai-insight" key={i}><span>{String(i+1).padStart(2,"0")}</span><p>{item}</p></div>)}</div>}</section>
+ <section className="panel ai-result-card"><div className="ai-result-heading"><div><span className="eyebrow">01 · SINTESI</span><h3>{aiReport.mode==="ai"?"Lettura intelligente del portafoglio":aiReport.summary}</h3></div><Sparkles color="#baf35e"/></div>{aiReport.analysis?<div className="ai-markdown">{renderAiMarkdown(aiReport.analysis)}</div>:<div className="ai-insight-list">{(aiReport.attention||[]).map((item:string,i:number)=><div className="ai-insight" key={i}><span>{String(i+1).padStart(2,"0")}</span><p>{item}</p></div>)}</div>}</section>
  <div className="ai-metrics-grid"><article className="panel ai-metric"><small>CAPITALE RICOSTRUITO</small><b>{money(aiReport.facts?.invested||0)}</b><span>Da movimenti registrati</span></article><article className="panel ai-metric"><small>VALORE STIMATO</small><b>{money(aiReport.facts?.currentValue||0)}</b><span>{aiReport.facts?.hasLiveQuotes?"Con quotazioni fornite dall'app":"Prezzo live non verificato"}</span></article><article className="panel ai-metric"><small>ETF ATTIVI</small><b>{aiReport.facts?.holdings?.length||0}</b><span>Posizioni ricostruite</span></article><article className="panel ai-metric"><small>PAC MENSILE</small><b>{money(aiReport.facts?.activePacMonthlyEquivalent||0)}</b><span>Equivalente dei piani attivi</span></article></div>
  <div className="ai-two-columns"><section className="panel ai-result-card"><span className="eyebrow">02 · PUNTI DI FORZA</span><h3>Cosa emerge dai dati</h3>{(aiReport.strengths||[]).length?(aiReport.strengths||[]).map((x:string,i:number)=><div className="ai-bullet" key={i}><i className="good-dot"/><p>{x}</p></div>):<p className="ai-muted">Non ci sono ancora elementi sufficienti per identificare punti di forza specifici.</p>}</section><section className="panel ai-result-card"><span className="eyebrow">03 · DA MONITORARE</span><h3>Attenzione e verifiche</h3>{(aiReport.attention||[]).map((x:string,i:number)=><div className="ai-bullet" key={i}><i className="warn-dot"/><p>{x}</p></div>)}</section></div>
  {aiReport.suggestions?.length>0&&<section className="panel ai-result-card"><span className="eyebrow">04 · PROSSIMI PASSI</span><h3>Controlli suggeriti</h3><div className="ai-next-steps">{aiReport.suggestions.map((x:string,i:number)=><div key={i}><b>0{i+1}</b><span>{x}</span></div>)}</div></section>}
