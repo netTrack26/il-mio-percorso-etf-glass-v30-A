@@ -177,6 +177,21 @@ export async function POST(request: NextRequest) {
         doc.moveDown(0.45);
       });
     }
+    const look = facts.lookThrough;
+    if (look && look.available) {
+      section(doc, "Analisi look-through e copertura", "Copertura del portafoglio: " + Number(look.portfolioCoverageWeightPercent || 0).toFixed(2) + "%. Snapshot: " + (look.snapshots || []).map((x:any)=>clean(x.isin) + " al " + clean(x.asOf)).join("; ") + ". Il punteggio di diversificazione è un indice descrittivo proprietario e non un rating standard.");
+      const companyLines = (look.topCompanies || []).map((x:any)=>clean(x.name,100) + (x.symbol ? " (" + clean(x.symbol,20) + ")" : "") + ": " + Number(x.portfolioWeightPercent || 0).toFixed(2).replace(".",",") + "% del portafoglio");
+      bulletSection(doc, "Prime 10 aziende per esposizione effettiva", companyLines);
+      const overlapLines = (look.overlappingCompanies || []).map((x:any)=>clean(x.name,100) + ": " + Number(x.portfolioWeightPercent || 0).toFixed(2).replace(".",",") + "% complessivo · " + (x.funds || []).join(", "));
+      bulletSection(doc, "Aziende presenti in più ETF", overlapLines);
+      const countryLines = (look.countryExposure || []).slice(0,12).map((x:any)=>clean(x.name,80) + ": " + Number(x.portfolioWeightPercent || 0).toFixed(2).replace(".",",") + "%");
+      bulletSection(doc, "Esposizione geografica aggregata", countryLines);
+      const sectorLines = (look.sectorExposure || []).slice(0,12).map((x:any)=>clean(x.name,80) + ": " + Number(x.portfolioWeightPercent || 0).toFixed(2).replace(".",",") + "%");
+      bulletSection(doc, "Esposizione settoriale aggregata", sectorLines);
+      section(doc, "Indice descrittivo di diversificazione", "Punteggio: " + (look.diversificationScore === null || look.diversificationScore === undefined ? "non disponibile" : Number(look.diversificationScore).toFixed(1) + "/100") + ". " + clean(look.diversificationScoreMethod,1000));
+    } else {
+      section(doc, "Analisi look-through", "Non sono disponibili snapshot holdings aggiornati per tutti gli ETF del portafoglio. Overlap, prime aziende e concentrazioni aggregate non vengono stimati per evitare dati inventati.");
+    }
     section(doc, "Risultato e performance", clean(report.performance));
     section(doc, "Diversificazione", clean(report.diversification));
     section(doc, "Sovrapposizioni tra ETF", clean(report.overlap));
