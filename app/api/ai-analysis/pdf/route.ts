@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       Title: "Il Mio Percorso ETF - Report AI del portafoglio",
       Author: "Il Mio Percorso ETF",
       Subject: "Analisi informativa del portafoglio ETF",
-      CreationDate: generatedDate
+      CreationDate: Number.isNaN(generatedDate.getTime()) ? new Date() : generatedDate
     };
 
     // Cover/header
@@ -122,6 +122,17 @@ export async function POST(request: NextRequest) {
     addMetric(doc, 48 + (col + gap) * 2, y, col, "Risultato", pnl + " (" + pnlPct + ")");
     addMetric(doc, 48 + (col + gap) * 3, y, col, "ETF attivi", String(holdings.length));
     doc.y = y + 75;
+    const terLabel = facts.weightedTerPercent === null || facts.weightedTerPercent === undefined
+      ? "TER ponderato: non disponibile"
+      : "TER ponderato indicativo: " + Number(facts.weightedTerPercent).toFixed(3).replace(".", ",") + "%";
+    doc.font("Helvetica").fontSize(8).fillColor("#5B6570").text(
+      "PAC mensile equivalente: " + euro(facts.activePacMonthlyEquivalent) +
+      "  |  Quotazioni recenti: " + Number(facts.liveQuoteCount || 0) + "/" + holdings.length +
+      "  |  " + terLabel +
+      "  |  Copertura TER per peso: " + Number(facts.terCoverageWeightPercent || 0).toFixed(1).replace(".", ",") + "%",
+      { width: 500 }
+    );
+    doc.moveDown(0.6);
 
     section(doc, "Sintesi esecutiva", clean(report.executiveSummary));
     section(doc, "Composizione del portafoglio", clean(report.portfolioComposition));
@@ -137,7 +148,10 @@ export async function POST(request: NextRequest) {
         doc.font("Helvetica-Bold").fontSize(9.3).fillColor("#202830").text(clean(h.ticker, 32) + "  ·  " + clean(h.name, 180), { width: 500 });
         doc.font("Helvetica").fontSize(8).fillColor("#5B6570").text("ISIN " + clean(h.isin, 20) + "  |  Peso " + weight + "  |  Valore " + euro(h.currentValue) + "  |  Investito " + euro(h.invested) + "  |  " + ter, { width: 500 });
         const quoteStatus = quote.freshness === "fresh" ? "timestamp recente" : quote.freshness === "delayed" ? "quotazione datata" : "prezzo non disponibile";
-        doc.font("Helvetica").fontSize(8).fillColor("#5B6570").text("Fonte: " + clean(quote.source || "n.d.") + " · Simbolo: " + clean(quote.symbol || "n.d.") + " · " + quoteStatus + " · " + (quote.time ? new Date(quote.time).toLocaleString("it-IT", { timeZone: "Europe/Rome" }) : "nessun timestamp"), { width: 500 });
+        const fxLabel = quote.fxRate === null || quote.fxRate === undefined
+          ? "cambio n.d."
+          : "1 " + clean(quote.originalCurrency || "EUR") + " = " + Number(quote.fxRate).toFixed(6) + " EUR";
+        doc.font("Helvetica").fontSize(8).fillColor("#5B6570").text("Fonte: " + clean(quote.source || "n.d.") + " · Simbolo: " + clean(quote.symbol || "n.d.") + " · " + quoteStatus + " · " + (quote.time ? new Date(quote.time).toLocaleString("it-IT", { timeZone: "Europe/Rome" }) : "nessun timestamp") + " · " + fxLabel, { width: 500 });
         doc.moveDown(0.45);
       });
     }
