@@ -22,7 +22,7 @@ async function authenticated() {
   return error || !data.user ? null : data.user;
 }
 
-function clean(value: unknown, max = 3000): string {
+function clean(value: unknown, max = 100000): string {
   return typeof value === "string" ? value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").slice(0, max).trim() : "";
 }
 function euro(value: unknown): string {
@@ -45,7 +45,7 @@ function bulletSection(doc: PDFKit.PDFDocument, title: string, items: unknown[])
   doc.font("Helvetica-Bold").fontSize(11).fillColor("#91BD42").text(title.toUpperCase());
   doc.moveDown(0.25);
   items.forEach((item, index) => {
-    const text = clean(item, 1800);
+    const text = clean(item, 100000);
     if (!text) return;
     doc.font("Helvetica-Bold").fontSize(9).fillColor("#91BD42").text("•", 52, doc.y, { continued: true, width: 12 });
     doc.font("Helvetica").fontSize(9.1).fillColor("#29313A").text(text, { width: 488, lineGap: 2, paragraphGap: 3 });
@@ -67,8 +67,22 @@ export async function POST(request: NextRequest) {
     const report = body.report;
     const facts = body.facts;
     const required = ["executiveSummary","portfolioComposition","performance","diversification","overlap","geographicExposure","sectorExposure","costsAndFees","pacAnalysis","quoteQuality","riskAssessment","methodology","limitations"];
-    if (!report || !facts || required.some(key => !clean(report[key]))) return NextResponse.json({ error: "Il report non contiene tutte le sezioni obbligatorie. Genera nuovamente l'analisi." }, { status: 400 });
-    if (!Array.isArray(report.verificationActions) || report.verificationActions.length !== 3) return NextResponse.json({ error: "Il report non contiene le tre verifiche pratiche complete." }, { status: 400 });
+    const completeSentence = (value: unknown) => {
+      const text = clean(value);
+      return text.length > 0 && /[.!?…]["'»”’)]*$/.test(text);
+    };
+    if (!report || !facts || required.some(key => !completeSentence(report[key]))) {
+      return NextResponse.json({ error: "Il report contiene una sezione mancante o una frase non conclusa. Rigenera l'analisi prima di esportare." }, { status: 400 });
+    }
+    if (!Array.isArray(report.strengths) || report.strengths.length < 2 || report.strengths.some((item: unknown) => !completeSentence(item))) {
+      return NextResponse.json({ error: "I punti di forza non sono completi. Rigenera l'analisi prima di esportare." }, { status: 400 });
+    }
+    if (!Array.isArray(report.monitoringItems) || report.monitoringItems.length < 3 || report.monitoringItems.some((item: unknown) => !completeSentence(item))) {
+      return NextResponse.json({ error: "Gli elementi da monitorare non sono completi. Rigenera l'analisi prima di esportare." }, { status: 400 });
+    }
+    if (!Array.isArray(report.verificationActions) || report.verificationActions.length !== 3 || report.verificationActions.some((item: unknown) => !completeSentence(item))) {
+      return NextResponse.json({ error: "Le tre verifiche pratiche non sono complete. Rigenera l'analisi prima di esportare." }, { status: 400 });
+    }
     const holdings = Array.isArray(facts.holdings) ? facts.holdings.slice(0, 50) : [];
     const generatedAt = clean(body.generatedAt, 80) || new Date().toISOString();
     const generatedDate = new Date(generatedAt);
@@ -141,7 +155,7 @@ export async function POST(request: NextRequest) {
     bulletSection(doc, "Tre verifiche pratiche", report.verificationActions);
     section(doc, "Metodologia", clean(report.methodology));
     section(doc, "Limiti dell'analisi", clean(report.limitations));
-    section(doc, "Nota informativa", clean(body.disclaimer, 1500) || "Documento informativo, non costituisce consulenza finanziaria personalizzata né raccomandazione di acquisto o vendita.");
+    section(doc, "Nota informativa", clean(body.disclaimer, 5000) || "Documento informativo, non costituisce consulenza finanziaria personalizzata né raccomandazione di acquisto o vendita.");
 
     // Add a page footer and page number on every buffered page.
     const range = doc.bufferedPageRange();

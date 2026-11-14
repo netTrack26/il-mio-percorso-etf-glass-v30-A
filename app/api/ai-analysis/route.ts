@@ -97,11 +97,13 @@ function validateReport(value: any): value is StructuredReport {
     "geographicExposure","sectorExposure","costsAndFees","pacAnalysis","quoteQuality",
     "riskAssessment","methodology","limitations"
   ];
+  const isCompleteSentence = (text: unknown): boolean =>
+    typeof text === "string" && text.trim().length > 0 && /[.!?…]["'»”’)]*$/.test(text.trim());
   if (!value || typeof value !== "object") return false;
-  if (requiredText.some(key => typeof value[key] !== "string" || !value[key].trim())) return false;
-  if (!Array.isArray(value.strengths) || value.strengths.length < 2 || value.strengths.some((x: unknown) => typeof x !== "string" || !x.trim())) return false;
-  if (!Array.isArray(value.monitoringItems) || value.monitoringItems.length < 3 || value.monitoringItems.some((x: unknown) => typeof x !== "string" || !x.trim())) return false;
-  if (!Array.isArray(value.verificationActions) || value.verificationActions.length !== 3 || value.verificationActions.some((x: unknown) => typeof x !== "string" || !x.trim())) return false;
+  if (requiredText.some(key => !isCompleteSentence(value[key]))) return false;
+  if (!Array.isArray(value.strengths) || value.strengths.length < 2 || value.strengths.some((x: unknown) => !isCompleteSentence(x))) return false;
+  if (!Array.isArray(value.monitoringItems) || value.monitoringItems.length < 3 || value.monitoringItems.some((x: unknown) => !isCompleteSentence(x))) return false;
+  if (!Array.isArray(value.verificationActions) || value.verificationActions.length !== 3 || value.verificationActions.some((x: unknown) => !isCompleteSentence(x))) return false;
   return true;
 }
 
