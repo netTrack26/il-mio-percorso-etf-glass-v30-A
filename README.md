@@ -2,19 +2,30 @@
 
 Next.js 15 / React 19. La piattaforma richiede Supabase configurato: senza credenziali la UI non è un ambiente multiutente e non deve essere presentata come servizio pubblico.
 
-## Installazione Supabase — ordine obbligatorio
+## Stato del database esistente
 
-Crea un progetto Supabase e apri **SQL Editor**. Esegui una sola volta, nell'ordine indicato, tutti i file SQL:
+Il progetto Supabase esistente è già popolato: risultano presenti le tabelle `etfs`, `pac_plans`, `portfolio_hidden_positions`, `portfolio_transactions`, `profiles`, `user_roles` e `watchlist`. Non applicare nuovamente le migrazioni iniziali 001–006 in blocco: il database non ha un registro standard di migrazione identificato e gli oggetti sono stati creati in precedenza senza una cronologia verificabile.
 
-1. `supabase/migrations/001_initial_schema.sql`
-2. `supabase/migrations/002_admin_foundation.sql`
-3. `supabase/migrations/002_allow_authenticated_etf_catalog_insert.sql`
-4. `supabase/migrations/003_admin_management.sql`
-5. `supabase/migrations/004_portfolio_hidden_positions.sql`
-6. `supabase/migrations/005_add_swda_etf.sql`
-7. `supabase/migrations/006_production_hardening.sql`
+Per riallineare il database esistente, dopo aver verificato che le tabelle base sopra elencate siano presenti, applica **una sola volta** il file:
 
-Non saltare le migrazioni: la dashboard legge anche `portfolio_hidden_positions`; la migrazione 006 aggiunge la policy UPDATE richiesta dall'operazione `upsert` e applica controlli di validità agli inserimenti nel catalogo condiviso.
+`supabase/migrations/007_reconcile_existing_supabase.sql`
+
+La migrazione è pensata per essere ripetibile: usa `CREATE TABLE IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, rimozione/ricreazione delle sole policy nominate e `INSERT ... ON CONFLICT DO NOTHING` per SWDA. Non elimina né riscrive le operazioni del portafoglio. Crea le RPC amministrative mancanti, crea `platform_settings`, aggiorna il trigger di signup con `search_path` vuoto, applica le policy RLS per account attivi e aggiunge la policy UPDATE necessaria all'upsert delle posizioni nascoste. Rimuove l'inserimento diretto non verificato nel catalogo: gli ETF vengono inseriti dal server dopo la verifica dell'ISIN.
+
+Non eseguire 003, 005 o 006 separatamente dopo 007: sono già ricompresi nella riconciliazione. Non creare manualmente una tabella `schema_migrations` solo per far apparire una cronologia.
+
+## Installazione Supabase per un progetto nuovo
+
+Solo per un progetto Supabase completamente nuovo, senza alcuna delle tabelle base, eseguire in ordine:
+1. `001_initial_schema.sql`
+2. `002_admin_foundation.sql`
+3. `002_allow_authenticated_etf_catalog_insert.sql`
+4. `003_admin_management.sql`
+5. `004_portfolio_hidden_positions.sql`
+6. `005_add_swda_etf.sql`
+7. `006_production_hardening.sql`
+
+Non usare questa procedura su un database già popolato.
 
 ## Variabili Vercel
 
@@ -43,7 +54,7 @@ where lower(email) = lower('INSERISCI-LA-TUA-EMAIL')
 on conflict (user_id) do update set role = 'admin';
 ```
 
-Non assegnare il ruolo admin ad altri account se non sono amministratori fidati. Le funzioni amministrative verificano il ruolo nel database; non assegnare ruoli tramite codice client.
+Se il ruolo amministratore è già presente, non eseguire nuovamente l'assegnazione.
 
 ## Funzioni e limiti attuali
 
@@ -52,5 +63,4 @@ Non assegnare il ruolo admin ad altri account se non sono amministratori fidati.
 - Le quotazioni sono recuperate da Yahoo Finance e i cambi storici da Frankfurter. Non sono prezzi certificati; prima della distribuzione commerciale occorre verificare licenze, condizioni d'uso, copertura e tempi di aggiornamento.
 - L'analisi AI è informativa e non costituisce consulenza finanziaria personalizzata. Senza archivio aggiornato delle partecipazioni sottostanti non può calcolare in modo affidabile overlap, pesi geografici o settoriali aggregati.
 - Premium è una predisposizione grafica/amministrativa: questa versione non gestisce pagamenti, abbonamenti o fatturazione.
-- Le tabelle personali sono protette da Row Level Security. Prima di aprire le iscrizioni al pubblico, eseguire i test di isolamento tra due account, sospensione account, registrazione, recupero password e cancellazione dati.
-- Non pubblicare il servizio finché non sono configurati e verificati privacy policy, termini d'uso, processo di cancellazione account, protezioni anti-abuso e licenze dei dati di mercato.
+- La migrazione 007 non sostituisce un audit esterno di sicurezza. Prima delle iscrizioni pubbliche servono test con due account distinti, recupero password, cancellazione dati, rate limiting API, privacy policy, termini d'uso e verifica licenze delle fonti dati.
