@@ -1,50 +1,56 @@
 # Il Mio Percorso ETF — Glass V30
 
-Next.js 15 / React 19. La UI demo resta funzionante in locale tramite localStorage finché non vengono configurate le credenziali Supabase.
+Next.js 15 / React 19. La piattaforma richiede Supabase configurato: senza credenziali la UI non è un ambiente multiutente e non deve essere presentata come servizio pubblico.
 
-## Supabase — base dati
-1. Crea un progetto Supabase.
-2. Apri SQL Editor ed esegui `supabase/migrations/001_initial_schema.sql`.
-3. Inserisci Project URL e anon/publishable key nelle variabili Vercel:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. Ridistribuisci il progetto.
+## Installazione Supabase — ordine obbligatorio
 
-La migrazione crea profili, catalogo ETF, transazioni, piani PAC e watchlist. Le tabelle personali sono protette con Row Level Security: ogni utente può leggere e modificare soltanto i propri dati. Il catalogo ETF è leggibile pubblicamente.
+Crea un progetto Supabase e apri **SQL Editor**. Esegui una sola volta, nell'ordine indicato, tutti i file SQL:
 
-## Stato e limiti
-- La UI V30 resta una demo locale; non invia ordini e non esegue acquisti automatici.
-- I piani PAC sono configurazioni/promemoria, non ordini di investimento.
-- Le quotazioni di mercato richiedono un provider e i relativi diritti/API key.
-- Non inserire mai una service-role key nel browser o in variabili `NEXT_PUBLIC_*`.
-- La sincronizzazione cloud e l'autenticazione verranno collegate dopo la configurazione del progetto Supabase.
+1. `supabase/migrations/001_initial_schema.sql`
+2. `supabase/migrations/002_admin_foundation.sql`
+3. `supabase/migrations/002_allow_authenticated_etf_catalog_insert.sql`
+4. `supabase/migrations/003_admin_management.sql`
+5. `supabase/migrations/004_portfolio_hidden_positions.sql`
+6. `supabase/migrations/005_add_swda_etf.sql`
+7. `supabase/migrations/006_production_hardening.sql`
 
+Non saltare le migrazioni: la dashboard legge anche `portfolio_hidden_positions`; la migrazione 006 aggiunge la policy UPDATE richiesta dall'operazione `upsert` e applica controlli di validità agli inserimenti nel catalogo condiviso.
 
-## Area amministratore — attivazione iniziale
-1. Dopo la migrazione iniziale, esegui anche `supabase/migrations/002_admin_foundation.sql` dal SQL Editor di Supabase.
-2. Per assegnare il ruolo amministratore al tuo account già registrato, sostituisci l'indirizzo qui sotto con la stessa email usata per accedere alla piattaforma ed esegui una sola volta:
+## Variabili Vercel
+
+Configura almeno:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` — solo server, necessaria all'API di ricerca/salvataggio ETF
+- `OPENAI_API_KEY` — solo server, necessaria per l'analisi AI
+
+Facoltativa:
+
+- `OPENAI_ANALYSIS_MODEL` — se assente viene usato il modello predefinito configurato nel codice.
+
+Non inserire mai service-role key o OpenAI API key in variabili `NEXT_PUBLIC_*`, nel browser, nel repository o in screenshot. Dopo aver impostato le variabili, esegui un nuovo deployment.
+
+## Primo amministratore
+
+Dopo aver creato il tuo account tramite la pagina di registrazione e aver applicato la migrazione 002_admin_foundation, assegna il ruolo amministratore una sola volta dal SQL Editor. Sostituisci l'indirizzo segnaposto con l'email esatta del tuo account:
 
 ```sql
 insert into public.user_roles (user_id, role)
 select id, 'admin'
 from auth.users
-where lower(email) = lower('memu86@hotmail.it')
+where lower(email) = lower('INSERISCI-LA-TUA-EMAIL')
 on conflict (user_id) do update set role = 'admin';
 ```
 
-La tabella dei ruoli non è accessibile direttamente dal browser. Le funzioni amministrative verificano il ruolo nel database e negano l'accesso agli utenti normali. Non assegnare il ruolo admin ad altri account se non sono amministratori fidati.
+Non assegnare il ruolo admin ad altri account se non sono amministratori fidati. Le funzioni amministrative verificano il ruolo nel database; non assegnare ruoli tramite codice client.
 
+## Funzioni e limiti attuali
 
-## Area amministratore completa — aggiornamento 003
-Dopo aver già applicato le migrazioni 001 e 002 e assegnato il ruolo proprietario, esegui una sola volta `supabase/migrations/003_admin_management.sql` nel SQL Editor di Supabase.
-
-La migrazione aggiunge:
-- statistiche e grafico iscrizioni giornaliere;
-- ricerca utenti e funzioni protette per sospendere/riattivare account e cambiare ruolo;
-- gestione del catalogo ETF tramite funzioni amministrative, con protezione contro la cancellazione di ETF già usati da portafogli, PAC o watchlist;
-- impostazioni di presentazione Premium;
-- blocco tramite Row Level Security dell'accesso ai dati personali agli account sospesi.
-
-Le operazioni amministrative sono funzioni SQL `SECURITY DEFINER` che verificano il ruolo admin nel database. Non richiedono né espongono la service-role key nel browser. La sospensione non cancella account, transazioni o posizioni.
-
-Premium resta una predisposizione di prodotto: questa versione non gestisce pagamenti, abbonamenti, fatture o concessione automatica di privilegi Premium. Prima di distribuire dati ETF agli utenti occorre verificare la licenza commerciale del provider.
+- Il portafoglio registra movimenti inseriti dall'utente; non invia ordini e non esegue acquisti automatici.
+- I piani PAC sono configurazioni/promemoria, non ordini di investimento.
+- Le quotazioni sono recuperate da Yahoo Finance e i cambi storici da Frankfurter. Non sono prezzi certificati; prima della distribuzione commerciale occorre verificare licenze, condizioni d'uso, copertura e tempi di aggiornamento.
+- L'analisi AI è informativa e non costituisce consulenza finanziaria personalizzata. Senza archivio aggiornato delle partecipazioni sottostanti non può calcolare in modo affidabile overlap, pesi geografici o settoriali aggregati.
+- Premium è una predisposizione grafica/amministrativa: questa versione non gestisce pagamenti, abbonamenti o fatturazione.
+- Le tabelle personali sono protette da Row Level Security. Prima di aprire le iscrizioni al pubblico, eseguire i test di isolamento tra due account, sospensione account, registrazione, recupero password e cancellazione dati.
+- Non pubblicare il servizio finché non sono configurati e verificati privacy policy, termini d'uso, processo di cancellazione account, protezioni anti-abuso e licenze dei dati di mercato.
