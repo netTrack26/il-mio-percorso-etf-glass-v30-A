@@ -484,7 +484,104 @@ return <main className="shell"><aside className={"sidebar "+(mobile?"open":"")}>
 {section==="Analisi"&&<div className="analysis-layout"><section className="panel section"><div className="panelhead"><div><div className="eyebrow">ANALISI · PORTAFOGLIO</div><h2>La composizione dei tuoi investimenti</h2><p>Distribuzione del valore registrato per singolo ETF.</p></div><span className="tag">{funds.length} STRUMENTI</span></div>{analysisRows.length===0?<p className="empty-state">Registra un acquisto per visualizzare composizione e concentrazione del portafoglio.</p>:<div className="analysis-chart-grid"><div className="analysis-donut"><ResponsiveContainer width="100%" height={250}><PieChart><Pie data={analysisRows} dataKey="value" nameKey="name" innerRadius={68} outerRadius={96} paddingAngle={3} stroke="none">{analysisRows.map((entry,index)=><Cell key={entry.name} fill={analysisPalette[index%analysisPalette.length]}/>)}</Pie><Tooltip formatter={(value)=>money(Number(value))} contentStyle={{background:"#28292e",border:"1px solid #ffffff25",borderRadius:10,color:"#fff"}}/></PieChart></ResponsiveContainer><div className="analysis-donut-center"><b>{money(total)}</b><small>Valore registrato</small></div></div><div className="analysis-legend">{analysisRows.map((p,index)=><div className="analysis-legend-row" key={p.name}><i style={{background:analysisPalette[index%analysisPalette.length]}}/><span>{p.name}</span><b>{p.weight.toLocaleString("it-IT",{maximumFractionDigits:1})}%</b></div>)}</div></div>}</section><div className="analysis-kpis"><section className="panel kpi"><div className="kpitop"><span>Strumenti in portafoglio</span><i><ChartNoAxesCombined size={17}/></i></div><b>{funds.length}</b><small>ETF con posizione attiva</small></section><section className="panel kpi"><div className="kpitop"><span>Risultato registrato</span><i><ChartNoAxesCombined size={17}/></i></div><b className={profit>=0?"positive":"negative"}>{fmt(profit)}</b><small>{portfolioReturn.toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2})}% sul capitale registrato</small></section><section className="panel kpi"><div className="kpitop"><span>Peso maggiore</span><i><ChartNoAxesCombined size={17}/></i></div><b>{topWeight.toLocaleString("it-IT",{maximumFractionDigits:1})}%</b><small>{analysisRows[0]?.name||"Nessuna posizione"}</small></section></div><section className="panel section"><div className="panelhead"><div><h2>Confronto tra posizioni</h2><p>Valore calcolato con quantità e ultimo prezzo registrato.</p></div></div>{analysisRows.length===0?<p className="empty-state">Nessun dato disponibile.</p>:<div className="analysis-bars"><ResponsiveContainer width="100%" height={Math.max(230,analysisRows.length*58)}><BarChart data={analysisRows} layout="vertical" margin={{top:4,right:18,bottom:4,left:8}}><CartesianGrid stroke="#ffffff12" horizontal={false}/><XAxis type="number" tickFormatter={(v)=>money(Number(v))} stroke="#85868e" tickLine={false} axisLine={false}/><YAxis type="category" dataKey="name" width={64} stroke="#c4c5cc" tickLine={false} axisLine={false}/><Tooltip formatter={(value)=>money(Number(value))} contentStyle={{background:"#28292e",border:"1px solid #ffffff25",borderRadius:10,color:"#fff"}}/><Bar dataKey="value" name="Valore" radius={[0,8,8,0]}>{analysisRows.map((entry,index)=><Cell key={entry.name} fill={analysisPalette[index%analysisPalette.length]}/>)}</Bar></BarChart></ResponsiveContainer></div>}</section><section className="panel section"><div className="panelhead"><div><h2>Dettaglio delle posizioni</h2><p>Valore, capitale registrato e risultato per ETF.</p></div></div>{analysisRows.length===0?<p className="empty-state">Nessuna posizione da analizzare.</p>:analysisRows.map(p=><div className="analysis-position" key={p.name}><div><b>{p.name}</b><small>{p.weight.toLocaleString("it-IT",{maximumFractionDigits:1})}% del portafoglio</small></div><div><b>{money(p.value)}</b><small>Investito {money(p.invested)}</small></div><strong className={p.pnl>=0?"positive":"negative"}>{p.pnl>=0?"+":""}{money(p.pnl)}</strong></div>)}</section><p className="muted analysis-disclaimer">Nota: questi grafici descrivono i dati registrati nel tuo account. Il valore usa l'ultimo prezzo inserito nelle operazioni, non una quotazione di mercato in tempo reale. La concentrazione per ETF non misura da sola la diversificazione sottostante, l'esposizione geografica o la sovrapposizione dei titoli.</p></div>}
 {section==="Transazioni"&&<section className="panel section"><div className="panelhead"><div><h2>Registro movimenti</h2><p>Operazioni demo salvate in questo browser</p></div><button className="primary" onClick={()=>D(true)}><Plus/> Nuovo movimento</button></div>{tx.length===0?<p>Nessun movimento registrato.</p>:tx.map(t=><div className="explorerow" key={t.id}><ArrowUpRight/><div className="fund"><b>Acquisto · {t.ticker}</b><small>{t.date} · {t.qty} quote · commissione {money(t.fee)}</small></div><strong>{money(t.qty*t.price+t.fee)}</strong></div>)}</section>}
 <footer>IL MIO PERCORSO ETF <i/> GLASS DASHBOARD V30 <span>· {userEmail?"Account cloud sincronizzato":"Modalità demo"} · Nessun ordine reale</span></footer></div></section>
-{authOpen&&<div className="backdrop" onClick={()=>AuthOpen(false)}><section className="modal panel" onClick={e=>e.stopPropagation()}><div className="panelhead"><div><div className="eyebrow">ACCOUNT · SUPABASE</div><h2>{userEmail?"Account collegato":"Accedi alla community"}</h2></div><button className="icon" onClick={()=>AuthOpen(false)}><X/></button></div>{userEmail?<><p className="muted">Accesso effettuato con {userEmail}. I dati cloud personali sono protetti da Row Level Security.</p><button className="secondary" onClick={async()=>{const sb=getSupabaseBrowserClient();if(sb)await sb.auth.signOut();AuthOpen(false);B("Disconnessione completata");}}>Esci dall’account</button></>:<><p className="muted">Accedi o crea un account per preparare la sincronizzazione del portafoglio. Le credenziali vengono gestite da Supabase.</p><div className="auth-switch"><button className={authMode==="login"?"selected":""} onClick={()=>AuthMode("login")}>Accedi</button><button className={authMode==="signup"?"selected":""} onClick={()=>AuthMode("signup")}>Crea account</button></div><label>Email<input type="email" autoComplete="email" value={email} onChange={e=>Email(e.target.value)} placeholder="nome@email.com"/></label><label>Password<input type="password" autoComplete={authMode==="login"?"current-password":"new-password"} value={password} onChange={e=>Password(e.target.value)} placeholder="Almeno 8 caratteri"/></label><button className="primary auth-submit" disabled={authBusy||!email||password.length<8} onClick={async()=>{const sb=getSupabaseBrowserClient();if(!sb){B("Configura prima URL e chiave pubblica Supabase in Vercel");return;}AuthBusy(true);const result=authMode==="login"?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password});AuthBusy(false);if(result.error){B(result.error.message);}else if(authMode==="signup"&&!result.data.session){B("Account creato: controlla la tua email per confermare l’indirizzo.");}else{B("Accesso effettuato");AuthOpen(false);}setTimeout(()=>B(""),4500);}}>{authBusy?"Attendere…":authMode==="login"?"Accedi":"Crea account"}</button></>}</section></div>}{newEtfOpen&&<div className="backdrop" onClick={()=>NewEtfOpen(false)}><section className="modal panel" onClick={e=>e.stopPropagation()}><div className="panelhead"><div><div className="eyebrow">CATALOGO PERSONALE</div><h2>Aggiungi un ETF</h2></div><button className="icon" onClick={()=>NewEtfOpen(false)}><X/></button></div><p className="muted">Inserisci l'ISIN: il sistema verifica lo strumento nel catalogo esterno prima di aggiungerlo al catalogo condiviso. I dati non verificati non vengono pubblicati.</p><label>ISIN<input value={newIsin} maxLength={12} onChange={e=>{NewIsin(e.target.value.toUpperCase().replace(/\\s/g,""));IsinSearchMessage("");}} placeholder="Es. IE00BFMXXD54"/></label>{isinSearchMessage&&<p className="muted" role="status">{isinSearchMessage}</p>}<div className="modalactions"><button className="secondary" onClick={()=>NewEtfOpen(false)}>Annulla</button><button className="primary" disabled={!newIsin.trim()||isinSearchBusy} onClick={addEtf}>{isinSearchBusy?"Verifica in corso…":"Verifica e aggiungi ETF"</button></div></section></div>}{modal&&<div className="backdrop" onClick={()=>D(false)}><section className="modal panel" onClick={e=>e.stopPropagation()}><div className="panelhead"><div><div className="eyebrow">PORTAFOGLIO · DEMO</div><h2>Registra un acquisto</h2></div><button className="icon" onClick={()=>D(false)}><X/></button></div><p className="muted">L'operazione viene salvata nel browser e, se hai collegato Supabase, anche nel tuo account. Nessun ordine viene inviato al broker.</p><label>ISIN dell’ETF<input value={purchaseIsin} maxLength={12} onChange={e=>{PurchaseIsin(e.target.value.toUpperCase().replace(/\\s/g,""));K("");PurchaseSearchMessage("");}} placeholder="Es. IE00BFMXXD54"/></label><button className="secondary" disabled={purchaseSearchBusy||!purchaseIsin.trim()} onClick={searchPurchaseIsin}>{purchaseSearchBusy?"Ricerca in corso…":"Cerca ETF tramite ISIN"}</button>{purchaseSearchMessage&&<p className="muted">{purchaseSearchMessage}</p>}{ticker&&<p className="muted">ETF selezionato: <b>{ticker}</b></p>}<div className="formgrid"><label>Quantità<input type="number" min="0" step="any" value={qty} onChange={e=>Y(e.target.value)}/></label><label>Prezzo quota (€)<input type="number" min="0" step="any" value={price} onChange={e=>Z(e.target.value)}/></label></div><label>Commissione (€)<input type="number" min="0" step="any" value={fee} onChange={e=>E(e.target.value)}/></label><div className="totalrow">Totale con commissione <b>{money((+qty||0)*(+price||0)+(+fee||0))}</b></div><div className="modalactions"><button className="secondary" onClick={()=>D(false)}>Annulla</button><button className="primary" disabled={!ticker||!purchaseIsin.trim()} onClick={save}>Salva operazione</button></div></section></div>}{adjustingFund&&<div className="backdrop" onClick={()=>AdjustingFund(null)}><section className="modal panel" onClick={e=>e.stopPropagation()}><div className="panelhead"><div><div className="eyebrow">PORTAFOGLIO · MODIFICA POSIZIONE</div><h2>{adjustingFund.ticker}</h2></div><button className="icon" onClick={()=>AdjustingFund(null)}><X/></button></div><p className="muted">Inserisci il numero totale di quote che possiedi oggi. La piattaforma registrerà una rettifica di acquisto o vendita, mantenendo lo storico precedente.</p><label>Quantità attuale desiderata<input type="number" min="0" step="any" value={adjustQuantity} onChange={e=>AdjustQuantity(e.target.value)}/></label><div className="totalrow">Quantità attuale registrata <b>{adjustingFund.qty.toLocaleString("it-IT",{maximumFractionDigits:8})}</b></div><div className="modalactions"><button className="secondary" onClick={()=>AdjustingFund(null)}>Annulla</button><button className="secondary" disabled={adjustBusy} onClick={()=>{if(confirm("Eliminare "+adjustingFund.ticker+" dal tuo portafoglio? Verrà registrata una vendita di tutte le quote; lo storico resterà conservato.")){void savePositionAdjustment(0);}}}>Elimina ETF</button><button className="primary" disabled={adjustBusy||!adjustQuantity.trim()} onClick={()=>void savePositionAdjustment()}>{adjustBusy?"Salvataggio…":"Salva quantità"}</button></div></section></div>}{toast&&<div className="toast">✓ {toast}</div>}</main>}
+{authOpen && (
+  <div className="backdrop" onClick={() => AuthOpen(false)}>
+    <section className="modal panel" onClick={(e) => e.stopPropagation()}>
+      <div className="panelhead">
+        <div><div className="eyebrow">ACCOUNT · SUPABASE</div><h2>{userEmail ? "Account collegato" : "Accedi alla community"}</h2></div>
+        <button className="icon" onClick={() => AuthOpen(false)}><X /></button>
+      </div>
+      {userEmail ? (
+        <>
+          <p className="muted">Accesso effettuato con {userEmail}. I dati cloud personali sono protetti da Row Level Security.</p>
+          <button className="secondary" onClick={async () => { const sb = getSupabaseBrowserClient(); if (sb) await sb.auth.signOut(); AuthOpen(false); B("Disconnessione completata"); }}>Esci dall’account</button>
+        </>
+      ) : (
+        <>
+          <p className="muted">Accedi o crea un account per preparare la sincronizzazione del portafoglio. Le credenziali vengono gestite da Supabase.</p>
+          <div className="auth-switch">
+            <button className={authMode === "login" ? "selected" : ""} onClick={() => AuthMode("login")}>Accedi</button>
+            <button className={authMode === "signup" ? "selected" : ""} onClick={() => AuthMode("signup")}>Crea account</button>
+          </div>
+          <label>Email<input type="email" autoComplete="email" value={email} onChange={(e) => Email(e.target.value)} placeholder="nome@email.com" /></label>
+          <label>Password<input type="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} value={password} onChange={(e) => Password(e.target.value)} placeholder="Almeno 8 caratteri" /></label>
+          <button className="primary auth-submit" disabled={authBusy || !email || password.length < 8} onClick={async () => {
+            const sb = getSupabaseBrowserClient();
+            if (!sb) { B("Configura prima URL e chiave pubblica Supabase in Vercel"); return; }
+            AuthBusy(true);
+            const result = authMode === "login" ? await sb.auth.signInWithPassword({ email, password }) : await sb.auth.signUp({ email, password });
+            AuthBusy(false);
+            if (result.error) B(result.error.message);
+            else if (authMode === "signup" && !result.data.session) B("Account creato: controlla la tua email per confermare l’indirizzo.");
+            else { B("Accesso effettuato"); AuthOpen(false); }
+            setTimeout(() => B(""), 4500);
+          }}>{authBusy ? "Attendere…" : authMode === "login" ? "Accedi" : "Crea account"}</button>
+        </>
+      )}
+    </section>
+  </div>
+)}
+{newEtfOpen && (
+  <div className="backdrop" onClick={() => NewEtfOpen(false)}>
+    <section className="modal panel" onClick={(e) => e.stopPropagation()}>
+      <div className="panelhead">
+        <div><div className="eyebrow">CATALOGO PERSONALE</div><h2>Aggiungi un ETF</h2></div>
+        <button className="icon" onClick={() => NewEtfOpen(false)}><X /></button>
+      </div>
+      <p className="muted">Inserisci l’ISIN: il sistema verifica lo strumento nel catalogo esterno prima di aggiungerlo al catalogo condiviso. I dati non verificati non vengono pubblicati.</p>
+      <label>ISIN<input value={newIsin} maxLength={12} onChange={(e) => { NewIsin(e.target.value.toUpperCase().replace(/\s/g, "")); IsinSearchMessage(""); }} placeholder="Es. IE00BFMXXD54" /></label>
+      {isinSearchMessage && <p className="muted" role="status">{isinSearchMessage}</p>}
+      <div className="modalactions">
+        <button className="secondary" onClick={() => NewEtfOpen(false)}>Annulla</button>
+        <button className="primary" disabled={!newIsin.trim() || isinSearchBusy} onClick={addEtf}>{isinSearchBusy ? "Verifica in corso…" : "Verifica e aggiungi ETF"}</button>
+      </div>
+    </section>
+  </div>
+)}
+{modal && (
+  <div className="backdrop" onClick={() => D(false)}>
+    <section className="modal panel" onClick={(e) => e.stopPropagation()}>
+      <div className="panelhead">
+        <div><div className="eyebrow">PORTAFOGLIO · DEMO</div><h2>Registra un acquisto</h2></div>
+        <button className="icon" onClick={() => D(false)}><X /></button>
+      </div>
+      <p className="muted">L’operazione viene salvata nel browser e, se hai collegato Supabase, anche nel tuo account. Nessun ordine viene inviato al broker.</p>
+      <label>ISIN dell’ETF<input value={purchaseIsin} maxLength={12} onChange={(e) => { PurchaseIsin(e.target.value.toUpperCase().replace(/\s/g, "")); K(""); PurchaseSearchMessage(""); }} placeholder="Es. IE00BFMXXD54" /></label>
+      <button className="secondary" disabled={purchaseSearchBusy || !purchaseIsin.trim()} onClick={searchPurchaseIsin}>{purchaseSearchBusy ? "Ricerca in corso…" : "Cerca ETF tramite ISIN"}</button>
+      {purchaseSearchMessage && <p className="muted">{purchaseSearchMessage}</p>}
+      {ticker && <p className="muted">ETF selezionato: <b>{ticker}</b></p>}
+      <div className="formgrid">
+        <label>Quantità<input type="number" min="0" step="any" value={qty} onChange={(e) => Y(e.target.value)} /></label>
+        <label>Prezzo quota (€)<input type="number" min="0" step="any" value={price} onChange={(e) => Z(e.target.value)} /></label>
+      </div>
+      <label>Commissione (€)<input type="number" min="0" step="any" value={fee} onChange={(e) => E(e.target.value)} /></label>
+      <div className="totalrow">Totale con commissione <b>{money((+qty || 0) * (+price || 0) + (+fee || 0))}</b></div>
+      <div className="modalactions">
+        <button className="secondary" onClick={() => D(false)}>Annulla</button>
+        <button className="primary" disabled={!ticker || !purchaseIsin.trim()} onClick={save}>Salva operazione</button>
+      </div>
+    </section>
+  </div>
+)}
+{adjustingFund && (
+  <div className="backdrop" onClick={() => AdjustingFund(null)}>
+    <section className="modal panel" onClick={(e) => e.stopPropagation()}>
+      <div className="panelhead">
+        <div><div className="eyebrow">PORTAFOGLIO · MODIFICA POSIZIONE</div><h2>{adjustingFund.ticker}</h2></div>
+        <button className="icon" onClick={() => AdjustingFund(null)}><X /></button>
+      </div>
+      <p className="muted">Inserisci il numero totale di quote che possiedi oggi. La piattaforma registrerà una rettifica di acquisto o vendita, mantenendo lo storico precedente.</p>
+      <label>Quantità attuale desiderata<input type="number" min="0" step="any" value={adjustQuantity} onChange={(e) => AdjustQuantity(e.target.value)} /></label>
+      <div className="totalrow">Quantità attuale registrata <b>{adjustingFund.qty.toLocaleString("it-IT", { maximumFractionDigits: 8 })}</b></div>
+      <div className="modalactions">
+        <button className="secondary" onClick={() => AdjustingFund(null)}>Annulla</button>
+        <button className="secondary" disabled={adjustBusy} onClick={() => { if (confirm("Eliminare " + adjustingFund.ticker + " dal tuo portafoglio? Verrà registrata una vendita di tutte le quote; lo storico resterà conservato.")) { void savePositionAdjustment(0); } }}>Elimina ETF</button>
+        <button className="primary" disabled={adjustBusy || !adjustQuantity.trim()} onClick={() => void savePositionAdjustment()}>{adjustBusy ? "Salvataggio…" : "Salva quantità"}</button>
+      </div>
+    </section>
+  </div>
+)}
+{toast && <div className="toast">✓ {toast}</div>}</main>}
 function AnimatedNumber({value,format}:{value:number,format:(n:number)=>string}){const [shown,Shown]=useState(0);useEffect(()=>{let frame=0;const start=performance.now(),duration=1100;const tick=(now:number)=>{const t=Math.min(1,(now-start)/duration);Shown(value*(1-Math.pow(1-t,3)));if(t<1)frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);},[value]);return <>{format(shown)}</>}
 function Kpi({label,value,note,format}:{label:string,value:number,note:string,format:(n:number)=>string}){const [shown,Shown]=useState(0);useEffect(()=>{let frame=0;const start=performance.now(),duration=1100;const tick=(now:number)=>{const t=Math.min(1,(now-start)/duration);Shown(value*(1-Math.pow(1-t,3)));if(t<1)frame=requestAnimationFrame(tick);};frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame);},[value]);return <section className="panel kpi"><div className="kpitop"><span>{label}</span><i><ChartNoAxesCombined size={17}/></i></div><b>{format(shown)}</b><small>{note}</small></section>}
 function FundTable({rows,hidden}:{rows:Fund[],hidden:boolean}){return <div className="tablewrap"><table><thead><tr><th>STRUMENTO</th><th>QUOTE</th><th>PREZZO</th><th>VALORE</th><th>VARIAZIONE</th></tr></thead><tbody>{rows.length===0?<tr><td colSpan={5} className="empty-cell">Nessun ETF nel portafoglio. Registra il tuo primo acquisto.</td></tr>:rows.map(p=>{const pnl=(p.price-p.avg)*p.qty;return <tr key={p.ticker}><td><b>{p.ticker}</b><small className="subfund">{p.name}</small></td><td>{p.qty}</td><td>{money(p.price)}</td><td><b>{hidden?"••••••":money(p.qty*p.price)}</b></td><td className={pnl>=0?"positive":"negative"}>{pnl>=0?"+":""}{hidden?"••":money(pnl)}</td></tr>})}</tbody></table></div>}
