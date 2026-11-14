@@ -77,9 +77,10 @@ export async function POST(request: NextRequest) {
     const total = holdings.reduce((s,h)=>s+h.currentValue,0);
     for (const h of holdings) { h.weight = total > 0 ? h.currentValue / total * 100 : 0; h.pnl = h.currentValue - h.invested; }
     const pacMonthly = (pacRows || []).filter((p:any)=>p.active).reduce((sum:number,p:any)=>sum + (Number(p.amount)||0) * (p.frequency==="weekly"?52/12:p.frequency==="quarterly"?1/3:1),0);
+    const liveQuoteCount = holdings.filter(h=>currentPrices.has(h.isin.toUpperCase())).length;
     const facts = {
       currency:"EUR", holdings, invested: Number(invested.toFixed(2)), currentValue: Number(total.toFixed(2)),
-      unrealizedResult: Number((total-invested).toFixed(2)), hasLiveQuotes: holdings.some(h=>currentPrices.has(h.isin.toUpperCase())), activePacMonthlyEquivalent: Number(pacMonthly.toFixed(2)),
+      unrealizedResult: Number((total-invested).toFixed(2)), hasLiveQuotes: liveQuoteCount>0, liveQuoteCount, quoteCoveragePercent: holdings.length ? Number((liveQuoteCount/holdings.length*100).toFixed(1)) : 0, activePacMonthlyEquivalent: Number(pacMonthly.toFixed(2)),
       dataLimitations: "Le quotazioni attuali, se presenti, provengono dall’app e vengono passate al server per questa analisi. In assenza di una quotazione si usa il costo medio registrato come valore sostitutivo e il dato deve essere segnalato come non live. Non inventare overlap o composizione sottostante."
     };
     const deterministic = localInsights(holdings, total, invested, pacMonthly);
