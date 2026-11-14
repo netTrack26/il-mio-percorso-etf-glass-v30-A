@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { fetchYahooChart } from "../../../lib/yahoo-finance";
+import { fetchYahooChart, convertQuoteToEur } from "../../../lib/yahoo-finance";
 
 export const runtime = "nodejs";
 
@@ -23,7 +23,7 @@ async function getSessionClient() {
   return { supabase, user: data.user };
 }
 
-type Holding = { isin: string; ticker: string; name: string; quantity: number; invested: number; currentValue: number; weight: number; pnl: number; quote: { source: string; symbol: string; time: string | null; marketState: string; freshness: "fresh" | "delayed" | "unavailable" } | null; };
+type Holding = { isin: string; ticker: string; name: string; quantity: number; invested: number; currentValue: number; weight: number; pnl: number; quote: { source: string; symbol: string; time: string | null; marketState: string; freshness: "fresh" | "delayed" | "unavailable"; currency: string; originalCurrency: string; fxRate: number } | null; };
 
 function localInsights(holdings: Holding[], total: number, invested: number, pacMonthly: number) {
   const top = [...holdings].sort((a,b)=>b.weight-a.weight)[0];
@@ -84,11 +84,12 @@ export async function POST(request: NextRequest) {
         if (!instrument) return;
         try {
           const quote = await fetchYahooChart(instrument, "5d", "1d");
+          const converted = await convertQuoteToEur(quote.price, quote.currency);
           const quoteMillis = quote.quoteTime ? new Date(quote.quoteTime).getTime() : 0;
           const ageHours = quoteMillis > 0 ? (Date.now() - quoteMillis) / 3600000 : Infinity;
           const freshness = ageHours <= 36 ? "fresh" : "delayed";
-          holding.currentValue = Number((holding.quantity * quote.price).toFixed(2));
-          holding.quote = { source:"Yahoo Finance", symbol:quote.symbol, time:quote.quoteTime, marketState:quote.marketState, freshness };
+          holding.currentValue = Number((holding.quantity * converted.priceEur).toFixed(2));
+          holding.quote = { source:"Yahoo Finance", symbol:quote.symbol, time:quote.quoteTime, marketState:quote.marketState, freshness, currency:"EUR", originalCurrency:converted.originalCurrency, fxRate:converted.fxRate };
         } catch {
           holding.quote = { source:"Yahoo Finance", symbol:String(instrument.ticker || holding.ticker), time:null, marketState:"UNAVAILABLE", freshness:"unavailable" };
         }
