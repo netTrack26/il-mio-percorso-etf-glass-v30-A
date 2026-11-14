@@ -47,11 +47,21 @@ export async function POST(request: NextRequest) {
       }
     });
     if (error) {
+      const underlyingCause = (error as Error & { cause?: unknown }).cause;
+      const causeDetails = underlyingCause instanceof Error
+        ? {
+            name: underlyingCause.name,
+            message: underlyingCause.message,
+            code: (underlyingCause as Error & { code?: string }).code
+          }
+        : underlyingCause == null ? null : String(underlyingCause);
       console.error("[beta-invite] Supabase inviteUserByEmail failed:", {
+        supabaseHost: new URL(supabaseUrl).host,
         status: error.status,
         code: error.code,
         name: error.name,
-        message: error.message
+        message: error.message,
+        cause: causeDetails
       });
       const message = /already|registered|exists/i.test(error.message)
         ? "Esiste già un account con questa email. Prova ad accedere."
