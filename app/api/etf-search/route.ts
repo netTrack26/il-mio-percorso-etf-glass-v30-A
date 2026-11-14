@@ -60,8 +60,10 @@ export async function GET(request: NextRequest) {
     const response = await fetch(BASE + "/api/search?q=" + encodeURIComponent(q), { next: { revalidate: 300 } });
     const payload = await response.json();
     if (!response.ok) return NextResponse.json({ error: payload?.error || "Ricerca ETF non disponibile." }, { status: response.status === 429 ? 429 : 502 });
-    const results = collectObjects(payload).map(normalise).filter(x => x.isin && x.name);\n    const known = KNOWN_ETFS[q.toUpperCase()];\n    if (known && !results.some(x => x.isin === known.isin)) results.unshift(known);\n    return NextResponse.json({ results: results.slice(0, 15), source: "ETF Compare + catalogo verificato" }, { headers: { "Cache-Control": "private, max-age=60" } });
-    return NextResponse.json({ results, source: "ETF Compare" }, { headers: { "Cache-Control": "private, max-age=60" } });
+    const results = collectObjects(payload).map(normalise).filter(x => x.isin && x.name);
+    const known = KNOWN_ETFS[q.toUpperCase()];
+    if (known && !results.some(x => x.isin === known.isin)) results.unshift(known);
+    return NextResponse.json({ results: results.slice(0, 15), source: "ETF Compare + catalogo verificato" }, { headers: { "Cache-Control": "private, max-age=60" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Errore di ricerca ETF." }, { status: 503 });
   }
