@@ -33,8 +33,31 @@ export async function POST(request: NextRequest) {
     if (!supabaseUrl || !serviceKey) {
       return NextResponse.json({ error: "Configurazione server incompleta." }, { status: 503 });
     }
+    const diagnosticFetch: typeof fetch = async (input, init) => {
+      try {
+        return await fetch(input, init);
+      } catch (fetchError) {
+        const err = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
+        const cause = (err as Error & { cause?: unknown }).cause;
+        console.error("[beta-invite] Outbound fetch to Supabase failed:", {
+          targetHost: (() => {
+            try { return new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url).host; }
+            catch { return "unavailable"; }
+          })(),
+          name: err.name,
+          message: err.message,
+          code: (err as Error & { code?: string }).code,
+          cause: cause instanceof Error
+            ? { name: cause.name, message: cause.message, code: (cause as Error & { code?: string }).code }
+            : cause == null ? null : String(cause),
+          stack: err.stack
+        });
+        throw fetchError;
+      }
+    };
     const admin = createClient(supabaseUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: diagnosticFetch }
     });
     const redirectTo = new URL("/auth/callback?next=/set-password", request.nextUrl.origin).toString();
     const { error } = await admin.auth.admin.inviteUserByEmail(email, {
