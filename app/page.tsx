@@ -239,7 +239,7 @@ async function runAIAnalysis(){
   const payload=await response.json();
   if(!response.ok)throw new Error(payload.error||"Analisi non disponibile.");
   if(!payload||!(payload.mode==="ai"||payload.mode==="rules"))throw new Error("La risposta del servizio AI non ha un formato riconosciuto.");
-  if(payload.mode==="ai"&&typeof payload.analysis!=="string")throw new Error("OpenAI ha risposto senza un testo di analisi valido.");
+  if(payload.mode==="ai"&&(typeof payload.analysis!=="string"||payload.reportComplete!==true||!payload.report||!Array.isArray(payload.report.verificationActions)||payload.report.verificationActions.length!==3))throw new Error("Il report AI non è completo: non mostro un risultato parziale. Riprova l’analisi.");
   AIReport(payload);AIStatus("idle");
  }catch(error){AIStatus("error");AIError(error instanceof Error?error.message:"Errore durante l'analisi.");}
 }
