@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const results = await Promise.all((instruments || []).map(async (instrument: any) => {
       try {
         const quote = await fetchYahooChart(instrument, "5d", "1d");
-        return { isin: instrument.isin, ...quote, error: null };
+        const previousClose = quote.points.length > 1 ? quote.points[quote.points.length - 2].price : quote.price;\n        const change = previousClose > 0 ? ((quote.price - previousClose) / previousClose) * 100 : 0;\n        return { isin: instrument.isin, ...quote, previousClose, change, error: null };
       } catch (e) { return { isin: instrument.isin, error: e instanceof Error ? e.message : "Quotazione non disponibile." }; }
     }));
     return NextResponse.json({ quotes: results.filter(x => !x.error), errors: results.filter(x => x.error), source: "Yahoo Finance", fetchedAt: new Date().toISOString() }, { headers: { "Cache-Control": "private, max-age=60" } });
