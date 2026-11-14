@@ -7,102 +7,28 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null);
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = typeof body?.password === "string" ? body.password : "";
     const inviteCode = typeof body?.inviteCode === "string" ? body.inviteCode.trim() : "";
     const legalAccepted = body?.legalAccepted === true;
     if (!legalAccepted) return NextResponse.json({ error: "Conferma prima Termini e Informativa Privacy." }, { status: 400 });
-    if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) {
-      return NextResponse.json({ error: "Inserisci un indirizzo email valido." }, { status: 400 });
-    }
+    if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) return NextResponse.json({ error: "Inserisci un indirizzo email valido." }, { status: 400 });
+    if (password.length < 8 || password.length > 128) return NextResponse.json({ error: "La password deve contenere almeno 8 caratteri." }, { status: 400 });
     const expectedCode = process.env.BETA_INVITE_CODE?.trim();
-    const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-    const supabaseUrl = rawSupabaseUrl?.replace(/\/+$/, "");
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-    const missing: string[] = [];
-    if (!expectedCode) missing.push("BETA_INVITE_CODE");
-    if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL");
-    if (!serviceKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
-    if (missing.length) {
-      console.error("[beta-invite] Missing server environment variables:", missing.join(", "));
-      return NextResponse.json({
-        error: "Configurazione inviti incompleta sul server. Variabili mancanti: " + missing.join(", ") + ". Dopo averle aggiunte, esegui un nuovo deployment Preview."
-      }, { status: 503 });
-    }
-    if (!inviteCode || inviteCode.length > 128 || inviteCode !== expectedCode) {
-      return NextResponse.json({ error: "Codice invito non valido." }, { status: 403 });
-    }
-    if (!supabaseUrl || !serviceKey) {
-      return NextResponse.json({ error: "Configurazione server incompleta." }, { status: 503 });
-    }
-    const diagnosticFetch: typeof fetch = async (input, init) => {
-      try {
-        return await fetch(input, init);
-      } catch (fetchError) {
-        const err = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
-        const cause = (err as Error & { cause?: unknown }).cause;
-        console.error("[beta-invite] Outbound fetch to Supabase failed:", {
-          targetHost: (() => {
-            try { return new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url).host; }
-            catch { return "unavailable"; }
-          })(),
-          name: err.name,
-          message: err.message,
-          code: (err as Error & { code?: string }).code,
-          cause: cause instanceof Error
-            ? { name: cause.name, message: cause.message, code: (cause as Error & { code?: string }).code }
-            : cause == null ? null : String(cause),
-          stack: err.stack
-        });
-        throw fetchError;
-      }
-    };
-    const admin = createClient(supabaseUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-      global: { fetch: diagnosticFetch }
-    });
-    const redirectTo = new URL("/auth/callback?next=/set-password", request.nextUrl.origin).toString();
-    const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo,
-      data: {
-        legal_terms_version: "2026-11-14",
-        privacy_notice_version: "2026-11-14",
-        legal_accepted_at: new Date().toISOString(),
-        beta_invited: true
-      }
-    });
+    if (!expectedCode) return NextResponse.json({ error: "Registrazioni momentaneamente non disponibili." }, { status: 503 });
+    if (!inviteCode || inviteCode.length > 128 || inviteCode !== expectedCode) return NextResponse.json({ error: "Codice Telegram non valido." }, { status: 403 });
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, "");
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    if (!url || !key) return NextResponse.json({ error: "Servizio di registrazione non configurato." }, { status: 503 });
+    const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { legal_accepted: true } });
     if (error) {
-      const underlyingCause = (error as Error & { cause?: unknown }).cause;
-      const causeDetails = underlyingCause instanceof Error
-        ? {
-            name: underlyingCause.name,
-            message: underlyingCause.message,
-            code: (underlyingCause as Error & { code?: string }).code
-          }
-        : underlyingCause == null ? null : String(underlyingCause);
-      console.error("[beta-invite] Supabase inviteUserByEmail failed:", {
-        supabaseHost: new URL(supabaseUrl).host,
-        status: error.status,
-        code: error.code,
-        name: error.name,
-        message: error.message,
-        cause: causeDetails
-      });
-      if (/already|registered|exists/i.test(error.message)) {
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-        if (!anonKey) {
-          return NextResponse.json({ error: "L'account esiste già. Configurazione recupero password incompleta: contatta l'amministratore." }, { status: 409 });
-        }
-        const recovery = createClient(supabaseUrl, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
-        const { error: recoveryError } = await recovery.auth.resetPasswordForEmail(email, { redirectTo });
-        if (recoveryError) {
-          console.error("[beta-invite] Existing-account recovery email failed:", { status: recoveryError.status, message: recoveryError.message });
-          return NextResponse.json({ error: "L'account esiste già, ma non siamo riusciti a inviare il link per impostare una password. Riprova tra poco." }, { status: 502 });
-        }
-        return NextResponse.json({ ok: true, recovery: true });
-      }
-      return NextResponse.json({ error: "Non è stato possibile inviare l’invito. Riprova più tardi." }, { status: 400 });
+      const exists = /already|registered|exists/i.test(error.message);
+      console.error("[account-signup] createUser failed:", { status: error.status, message: error.message });
+      return NextResponse.json({ error: exists ? "Esiste già un account con questa email. Accedi dalla scheda Accedi." : "Non è stato possibile creare l’account. Verifica i dati e riprova." }, { status: 400 });
     }
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Errore durante la richiesta di invito." }, { status: 500 });
+    return NextResponse.json({ ok: true, userId: data.user.id });
+  } catch (error) {
+    console.error("[account-signup] Unexpected error:", error instanceof Error ? error.message : "unknown");
+    return NextResponse.json({ error: "Errore temporaneo durante la registrazione." }, { status: 500 });
   }
 }
