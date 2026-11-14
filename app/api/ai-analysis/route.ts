@@ -162,7 +162,7 @@ async function requestCompleteReport(apiKey: string, model: string, facts: any, 
     "Sei l'analista di portafoglio di Il Mio Percorso ETF. Scrivi in italiano, in modo professionale, concreto e prudente.",
     "Devi compilare TUTTI i campi dello schema. Ogni campo testuale deve essere completo e autonomo, con frasi finite. Non interrompere mai un elenco a metà.",
     "Usa esclusivamente i dati JSON forniti. Non inventare performance storiche, benchmark, holdings, pesi geografici, settori, sovrapposizioni, TER o dati fiscali.",
-    "IMPORTANTE: non sono stati forniti i dati dei titoli sottostanti (look-through holdings). Perciò dichiara esplicitamente che overlap, settore e geografia a livello aggregato non sono calcolabili in modo affidabile; puoi descrivere solo l'esposizione dichiarata nel nome/indice dei fondi come indicazione qualitativa, non come misura.",
+    "Usa i dati look-through presenti nel JSON quando available=true. Quantifica overlap, aziende, settori e Paesi solo per la copertura effettivamente disponibile; indica sempre date e copertura. Se available=false o la copertura è parziale, dichiara chiaramente le lacune e non estrapolare.",
     "Distingui capitale investito, valore stimato, risultato non realizzato e rendimento storico. Non chiamare Yahoo Finance fonte ufficiale o prezzo certificato.",
     "Una quotazione è recente solo se ha timestamp e freshness=fresh. Non dichiarare copertura completa se non tutti i prezzi sono recenti e disponibili.",
     "I prezzi e i controvalori sono in EUR. Le valute del fondo e delle quotazioni originali restano metadati e non indicano necessariamente il rischio valutario effettivo.",
@@ -270,6 +270,60 @@ export async function POST(request: NextRequest) {
       }));
     }
 
+    const { data: snapshotRows, error: snapshotError } = await supabase.from("etf_data_snapshots")
+      .select("id,isin,provider,provider_symbol,as_of_date,source_updated_at,holdings_count,holdings_coverage_percent")
+      .in("isin", holdings.map(h=>h.isin)).order("as_of_date", { ascending: false });
+    if (snapshotError) throw new Error("Lettura archivio holdings non riuscita: " + snapshotError.message);
+    const latestByIsin = new Map<string, any>();
+    for (const snapshot of snapshotRows || []) if (!latestByIsin.has(snapshot.isin)) latestByIsin.set(snapshot.isin, snapshot);
+    const snapshotIds = [...latestByIsin.values()].map(x=>x.id);
+    const [lookResult, countryResult, sectorResult] = snapshotIds.length ? await Promise.all([
+      supabase.from("etf_lookthrough_holdings").select("snapshot_id,security_key,security_isin,symbol,security_name,weight_percent,sector,country,asset_type").in("snapshot_id",snapshotIds),
+      supabase.from("etf_country_allocations").select("snapshot_id,country,weight_percent").in("snapshot_id",snapshotIds),
+      supabase.from("etf_sector_allocations").select("snapshot_id,sector,weight_percent").in("snapshot_id",snapshotIds)
+    ]) : [{data:[],error:null},{data:[],error:null},{data:[],error:null}];
+    if (lookResult.error || countryResult.error || sectorResult.error) throw new Error("Lettura dati look-through non riuscita.");
+    const lookRows=lookResult.data||[], countryRows=countryResult.data||[], sectorRows=sectorResult.data||[];
+    const securityExposure = new Map<string,{name:string;symbol:string|null;isin:string|null;weight:number;funds:Set<string>}>();
+    const countryExposure = new Map<string,number>(), sectorExposure = new Map<string,number>();
+    const topCompaniesByEtf: Record<string,any[]> = {};
+    for (const fund of holdings) {
+      const snapshot=latestByIsin.get(fund.isin);
+      if (!snapshot) { topCompaniesByEtf[fund.isin]=[]; continue; }
+      const rowsForFund=lookRows.filter((x:any)=>x.snapshot_id===snapshot.id);
+      topCompaniesByEtf[fund.isin]=rowsForFund.slice().sort((a:any,b:any)=>Number(b.weight_percent)-Number(a.weight_percent)).slice(0,10)
+        .map((x:any)=>({name:x.security_name,symbol:x.symbol,isin:x.security_isin,weightPercent:Number(x.weight_percent),sector:x.sector,country:x.country}));
+      for (const item of rowsForFund) {
+        const key=String(item.security_isin||item.symbol||item.security_key||item.security_name).trim().toUpperCase();
+        const entry=securityExposure.get(key)||{name:item.security_name,symbol:item.symbol||null,isin:item.security_isin||null,weight:0,funds:new Set<string>()};
+        entry.weight+=fund.weight*Number(item.weight_percent||0)/100; entry.funds.add(fund.isin); securityExposure.set(key,entry);
+      }
+      for (const item of countryRows.filter((x:any)=>x.snapshot_id===snapshot.id)) {
+        const key=String(item.country); countryExposure.set(key,(countryExposure.get(key)||0)+fund.weight*Number(item.weight_percent||0)/100);
+      }
+      for (const item of sectorRows.filter((x:any)=>x.snapshot_id===snapshot.id)) {
+        const key=String(item.sector); sectorExposure.set(key,(sectorExposure.get(key)||0)+fund.weight*Number(item.weight_percent||0)/100);
+      }
+    }
+    const topCompanies=[...securityExposure.values()].sort((a,b)=>b.weight-a.weight).slice(0,10)
+      .map(x=>({name:x.name,symbol:x.symbol,isin:x.isin,portfolioWeightPercent:Number(x.weight.toFixed(4)),fundCount:x.funds.size}));
+    const overlappingCompanies=[...securityExposure.values()].filter(x=>x.funds.size>1).sort((a,b)=>b.weight-a.weight)
+      .map(x=>({name:x.name,symbol:x.symbol,isin:x.isin,portfolioWeightPercent:Number(x.weight.toFixed(4)),fundCount:x.funds.size,funds:[...x.funds]}));
+    const aggregateAllocations=(source:Map<string,number>)=>[...source.entries()].map(([name,weight])=>({name,portfolioWeightPercent:Number(weight.toFixed(4))})).sort((a,b)=>b.portfolioWeightPercent-a.portfolioWeightPercent);
+    const lookThroughCoverageWeight=holdings.reduce((sum,h)=>sum+(latestByIsin.has(h.isin)?h.weight:0),0);
+    const companyHhi=[...securityExposure.values()].reduce((sum,x)=>sum+Math.pow(x.weight/100,2),0);
+    const lookThroughAvailable=holdings.length>0&&holdings.every(h=>latestByIsin.has(h.isin))&&securityExposure.size>0;
+    const lookThroughFacts={
+      available:lookThroughAvailable,snapshotCount:latestByIsin.size,
+      portfolioCoverageWeightPercent:Number(lookThroughCoverageWeight.toFixed(2)),
+      snapshots:[...latestByIsin.values()].map(x=>({isin:x.isin,provider:x.provider,asOf:x.as_of_date,sourceUpdatedAt:x.source_updated_at,holdingsCount:x.holdings_count,reportedCoveragePercent:x.holdings_coverage_percent})),
+      topCompaniesByEtf,topCompanies,overlappingCompanies,overlapCompanyCount:overlappingCompanies.length,
+      countryExposure:aggregateAllocations(countryExposure),sectorExposure:aggregateAllocations(sectorExposure),
+      companyConcentrationHhi:Number(companyHhi.toFixed(5)),
+      diversificationScore:lookThroughAvailable?Number(Math.max(0,Math.min(100,(1-companyHhi)*100)).toFixed(1)):null,
+      diversificationScoreMethod:"Indice descrittivo proprietario: 100 × (1 − HHI delle esposizioni aggregate per società), limitato a 0–100. Non è un rating regolamentare né una misura di adeguatezza personale."
+    };
+
     const invested = holdings.reduce((s,h)=>s+h.invested,0);
     const total = holdings.reduce((s,h)=>s+h.currentValue,0);
     for (const h of holdings) { h.weight = total > 0 ? h.currentValue / total * 100 : 0; h.pnl = h.currentValue - h.invested; }
@@ -303,8 +357,9 @@ export async function POST(request: NextRequest) {
       activePacMonthlyEquivalent: Number(pacMonthly.toFixed(2)),
       weightedTerPercent: weightedTer===null ? null : Number(weightedTer.toFixed(4)),
       terCoverageWeightPercent: Number(terCoverageWeight.toFixed(2)),
-      lookThroughHoldingsAvailable: false,
-      lookThroughDataNote: "Non è collegato un archivio aggiornato delle partecipazioni sottostanti per tutti gli ETF. Non calcolare overlap, pesi geografici o settoriali aggregati senza tali file.",
+      lookThroughHoldingsAvailable: lookThroughFacts.available,
+      lookThrough: lookThroughFacts,
+      lookThroughDataNote: lookThroughFacts.available ? "Dati aggregati dagli snapshot provider indicati, con copertura e date esplicite." : "Copertura look-through incompleta: non presentare overlap, geografia o settori come completi.",
       dataLimitations: "Le quotazioni sono richieste direttamente a Yahoo Finance durante questa analisi. Fresca significa timestamp entro 36 ore e non certificazione o licenza del dato. Se la richiesta fallisce, il valore rimane al costo ricostruito e la posizione è marcata non disponibile. I campi di catalogo possono essere incompleti."
     };
     const deterministic = localInsights(holdings, total, invested, pacMonthly);
