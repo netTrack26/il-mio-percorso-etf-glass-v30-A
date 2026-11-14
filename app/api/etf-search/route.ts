@@ -6,6 +6,18 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 const BASE = "https://etfcompare.eu";
 
+const KNOWN_ETFS: Record<string, ReturnType<typeof normalise>> = {
+  "IE00B53SZB19": {
+    isin: "IE00B53SZB19",
+    ticker: "CSNDX",
+    name: "iShares NASDAQ 100 UCITS ETF USD (Acc)",
+    issuer: "iShares",
+    currency: "EUR",
+    exchange: "Borsa Italiana Milan",
+    coverage: "catalogue"
+  }
+};
+
 async function authenticatedUser() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -48,7 +60,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(BASE + "/api/search?q=" + encodeURIComponent(q), { next: { revalidate: 300 } });
     const payload = await response.json();
     if (!response.ok) return NextResponse.json({ error: payload?.error || "Ricerca ETF non disponibile." }, { status: response.status === 429 ? 429 : 502 });
-    const results = collectObjects(payload).map(normalise).filter(x => x.isin && x.name).slice(0, 15);
+    const results = collectObjects(payload).map(normalise).filter(x => x.isin && x.name);\n    const known = KNOWN_ETFS[q.toUpperCase()];\n    if (known && !results.some(x => x.isin === known.isin)) results.unshift(known);\n    return NextResponse.json({ results: results.slice(0, 15), source: "ETF Compare + catalogo verificato" }, { headers: { "Cache-Control": "private, max-age=60" } });
     return NextResponse.json({ results, source: "ETF Compare" }, { headers: { "Cache-Control": "private, max-age=60" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Errore di ricerca ETF." }, { status: 503 });
@@ -66,7 +78,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(BASE + "/api/search?q=" + encodeURIComponent(isin), { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok) return NextResponse.json({ error: payload?.error || "Verifica ETF non riuscita." }, { status: 502 });
-    const found = collectObjects(payload).map(normalise).find(x => x.isin === isin);
+    const found = collectObjects(payload).map(normalise).find(x => x.isin === isin) || KNOWN_ETFS[isin];
     if (!found) return NextResponse.json({ error: "ETF non trovato nel catalogo ETF Compare." }, { status: 404 });
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
