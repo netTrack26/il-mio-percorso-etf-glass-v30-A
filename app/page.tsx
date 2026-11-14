@@ -99,6 +99,25 @@ useEffect(()=>{
  return()=>{cancelled=true;};
 },[userEmail,funds.map(p=>p.isin+":"+p.qty).join("|"),firstPortfolioDate]);
 useEffect(()=>{
+ if(!userEmail||funds.length===0)return;
+ let cancelled=false;
+ const loadQuotes=async()=>{
+  try{
+   const response=await fetch("/api/portfolio-quotes",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({isins:funds.map(p=>p.isin)})});
+   const payload=await response.json();
+   if(!response.ok)throw new Error(payload.error||"Quotazioni non disponibili.");
+   if(cancelled)return;
+   const quotes=new Map((payload.quotes||[]).map((q:any)=>[q.isin,q]));
+   F(old=>old.map(p=>{const q:any=quotes.get(p.isin);return q?{...p,price:Number(q.price),change:Number(q.change)||0}:p;}));
+   const failures=(payload.errors||[]).length;
+   if(failures)B("Yahoo Finance: "+failures+" quotazioni non disponibili; gli altri prezzi sono stati aggiornati.");
+  }catch(error){if(!cancelled)B(error instanceof Error?error.message:"Aggiornamento quotazioni non riuscito.");}
+ };
+ void loadQuotes();
+ const interval=window.setInterval(()=>void loadQuotes(),5*60*1000);
+ return()=>{cancelled=true;window.clearInterval(interval);};
+},[userEmail,funds.map(p=>p.isin).join("|")]);
+useEffect(()=>{
 const q=pacSearch.trim();
  if(q.length<2){PacResults([]);PacSearchError("");PacSearchBusy(false);return;}
  let cancelled=false;
