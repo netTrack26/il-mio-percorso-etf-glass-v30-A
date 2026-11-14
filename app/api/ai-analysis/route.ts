@@ -37,11 +37,13 @@ function localInsights(holdings: Holding[], total: number, invested: number, pac
   return notes;
 }
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getSessionClient();
     if (!session) return NextResponse.json({ error: "Accedi per utilizzare AI Analysis." }, { status: 401 });
     const { supabase, user } = session;
+    const body = await request.json().catch(() => ({}));
+    const currentPrices = new Map<string, number>((Array.isArray(body.currentPrices) ? body.currentPrices : []).slice(0, 50).filter((x:any)=>typeof x?.isin==="string" && Number.isFinite(Number(x.price)) && Number(x.price)>0).map((x:any)=>[String(x.isin).toUpperCase(), Number(x.price)]));
     const [{ data: rows, error: txError }, { data: pacRows, error: pacError }] = await Promise.all([
       supabase.from("portfolio_transactions").select("isin,transaction_type,quantity,unit_price,fees,executed_at,etfs(ticker,name)").eq("user_id", user.id).order("executed_at", { ascending: true }),
       supabase.from("pac_plans").select("amount,frequency,active").eq("user_id", user.id)
@@ -69,21 +71,21 @@ export async function POST(_request: NextRequest) {
 
     const holdings: Holding[] = [...map.entries()].filter(([,v])=>v.quantity>0).map(([isin,v])=>({
       isin, ticker:v.ticker, name:v.name, quantity:Number(v.quantity.toFixed(6)), invested:Number(v.cost.toFixed(2)),
-      currentValue:Number(v.cost.toFixed(2)), weight:0, pnl:0
+      currentValue:Number((v.quantity * (currentPrices.get(isin.toUpperCase()) || (v.cost / Math.max(v.quantity,0.000001)))).toFixed(2)), weight:0, pnl:0
     }));
     const invested = holdings.reduce((s,h)=>s+h.invested,0);
-    const total = invested;
+    const total = holdings.reduce((s,h)=>s+h.currentValue,0);
     for (const h of holdings) { h.weight = total > 0 ? h.currentValue / total * 100 : 0; h.pnl = h.currentValue - h.invested; }
     const pacMonthly = (pacRows || []).filter((p:any)=>p.active).reduce((sum:number,p:any)=>sum + (Number(p.amount)||0) * (p.frequency==="weekly"?52/12:p.frequency==="quarterly"?1/3:1),0);
     const facts = {
       currency:"EUR", holdings, invested: Number(invested.toFixed(2)), currentValue: Number(total.toFixed(2)),
-      unrealizedResult: 0, activePacMonthlyEquivalent: Number(pacMonthly.toFixed(2)),
-      dataLimitations: "La valutazione lato server usa il costo netto ricostruito dai movimenti perché il catalogo non memorizza una quotazione live affidabile. Non inventare prezzi correnti, rendimento di mercato, overlap o composizione sottostante."
+      unrealizedResult: Number((total-invested).toFixed(2)), hasLiveQuotes: holdings.some(h=>currentPrices.has(h.isin.toUpperCase())), activePacMonthlyEquivalent: Number(pacMonthly.toFixed(2)),
+      dataLimitations: "Le quotazioni attuali, se presenti, provengono dall’app e vengono passate al server per questa analisi. In assenza di una quotazione si usa il costo medio registrato come valore sostitutivo e il dato deve essere segnalato come non live. Non inventare overlap o composizione sottostante."
     };
     const deterministic = localInsights(holdings, total, invested, pacMonthly);
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ mode:"rules", generatedAt:new Date().toISOString(), facts, summary:"Analisi automatica dei dati registrati", strengths: holdings.length ? ["I movimenti sono organizzati per ETF e permettono di ricostruire le quantità detenute."] : [], attention:deterministic, suggestions:["Aggiungi dati di composizione degli ETF per analizzare sovrapposizioni e concentrazione dei singoli titoli.","Collega quotazioni di mercato verificate prima di interpretare plusvalenze e andamento."], disclaimer:"Analisi informativa basata sui movimenti Supabase. Non è consulenza finanziaria personalizzata." });
+      return NextResponse.json({ mode:"rules", generatedAt:new Date().toISOString(), facts, summary:"Analisi automatica dei dati registrati", strengths: holdings.length ? ["I movimenti sono organizzati per ETF e permettono di ricostruire le quantità detenute."] : [], attention:deterministic, suggestions:["Aggiungi dati di composizione degli ETF per analizzare sovrapposizioni e concentrazione dei singoli titoli.","Verifica la disponibilità di quotazioni aggiornate per tutte le posizioni prima di interpretare il risultato."], disclaimer:"Analisi informativa basata sui movimenti Supabase. Non è consulenza finanziaria personalizzata." });
     }
 
     const prompt = [
