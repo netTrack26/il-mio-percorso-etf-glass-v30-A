@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         }
         const info = infoResult.status === "fulfilled" ? infoResult.value[0] || {} : {};
         const sourceRows = holdings.value;
-        const updatedAt = sourceRows.map((x:any)=>x.updatedAt).filter(Boolean).sort().at(-1) || info.updatedAt || null;
+        const updatedAt = sourceRows.map((x:any)=>x.updatedAt).filter(Boolean).sort().slice(-1)[0] || info.updatedAt || null;
         const asOf = updatedAt && /^\\d{4}-\\d{2}-\\d{2}/.test(String(updatedAt)) ? String(updatedAt).slice(0,10) : new Date().toISOString().slice(0,10);
         const snapshot = {
           isin: fund.isin, provider: "financialmodelingprep", provider_symbol: symbol,
