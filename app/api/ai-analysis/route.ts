@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { fetchYahooChart } from "../../../lib/yahoo-finance";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,7 @@ async function getSessionClient() {
   return { supabase, user: data.user };
 }
 
-type Holding = { isin: string; ticker: string; name: string; quantity: number; invested: number; currentValue: number; weight: number; pnl: number; };
+type Holding = { isin: string; ticker: string; name: string; quantity: number; invested: number; currentValue: number; weight: number; pnl: number; quote: { source: string; symbol: string; time: string | null; marketState: string; freshness: "fresh" | "delayed" | "unavailable" } | null; };
 
 function localInsights(holdings: Holding[], total: number, invested: number, pacMonthly: number) {
   const top = [...holdings].sort((a,b)=>b.weight-a.weight)[0];
@@ -71,17 +72,40 @@ export async function POST(request: NextRequest) {
 
     const holdings: Holding[] = [...map.entries()].filter(([,v])=>v.quantity>0).map(([isin,v])=>({
       isin, ticker:v.ticker, name:v.name, quantity:Number(v.quantity.toFixed(6)), invested:Number(v.cost.toFixed(2)),
-      currentValue:Number((v.quantity * (currentPrices.get(isin.toUpperCase()) || (v.cost / Math.max(v.quantity,0.000001)))).toFixed(2)), weight:0, pnl:0
+      currentValue:Number((v.cost).toFixed(2)), weight:0, pnl:0, quote:null
     }));
+    const isins = holdings.map(h=>h.isin);
+    if (isins.length) {
+      const { data: instruments, error: catalogError } = await supabase.from("etfs").select("isin,ticker,exchange,currency").in("isin", isins);
+      if (catalogError) throw new Error("Verifica quotazioni non riuscita: " + catalogError.message);
+      const byIsin = new Map<string, any>((instruments || []).map((item:any)=>[String(item.isin).toUpperCase(), item]));
+      await Promise.all(holdings.map(async holding => {
+        const instrument = byIsin.get(holding.isin.toUpperCase());
+        if (!instrument) return;
+        try {
+          const quote = await fetchYahooChart(instrument, "5d", "1d");
+          const quoteMillis = quote.quoteTime ? new Date(quote.quoteTime).getTime() : 0;
+          const ageHours = quoteMillis > 0 ? (Date.now() - quoteMillis) / 3600000 : Infinity;
+          const freshness = ageHours <= 36 ? "fresh" : "delayed";
+          holding.currentValue = Number((holding.quantity * quote.price).toFixed(2));
+          holding.quote = { source:"Yahoo Finance", symbol:quote.symbol, time:quote.quoteTime, marketState:quote.marketState, freshness };
+        } catch {
+          holding.quote = { source:"Yahoo Finance", symbol:String(instrument.ticker || holding.ticker), time:null, marketState:"UNAVAILABLE", freshness:"unavailable" };
+        }
+      }));
+    }
     const invested = holdings.reduce((s,h)=>s+h.invested,0);
     const total = holdings.reduce((s,h)=>s+h.currentValue,0);
     for (const h of holdings) { h.weight = total > 0 ? h.currentValue / total * 100 : 0; h.pnl = h.currentValue - h.invested; }
     const pacMonthly = (pacRows || []).filter((p:any)=>p.active).reduce((sum:number,p:any)=>sum + (Number(p.amount)||0) * (p.frequency==="weekly"?52/12:p.frequency==="quarterly"?1/3:1),0);
-    const liveQuoteCount = holdings.filter(h=>currentPrices.has(h.isin.toUpperCase())).length;
+    const liveQuoteCount = holdings.filter(h=>h.quote?.freshness==="fresh").length;
+    const delayedQuoteCount = holdings.filter(h=>h.quote?.freshness==="delayed").length;
+    const unavailableQuoteCount = holdings.filter(h=>h.quote?.freshness==="unavailable" || !h.quote).length;
     const facts = {
       currency:"EUR", holdings, invested: Number(invested.toFixed(2)), currentValue: Number(total.toFixed(2)),
-      unrealizedResult: Number((total-invested).toFixed(2)), hasLiveQuotes: liveQuoteCount>0, liveQuoteCount, quoteCoveragePercent: holdings.length ? Number((liveQuoteCount/holdings.length*100).toFixed(1)) : 0, activePacMonthlyEquivalent: Number(pacMonthly.toFixed(2)),
-      dataLimitations: "Le quotazioni attuali, se presenti, provengono dall’app e vengono passate al server per questa analisi. In assenza di una quotazione si usa il costo medio registrato come valore sostitutivo e il dato deve essere segnalato come non live. Non inventare overlap o composizione sottostante."
+      unrealizedResult: Number((total-invested).toFixed(2)), hasLiveQuotes: liveQuoteCount>0, liveQuoteCount, delayedQuoteCount, unavailableQuoteCount,
+      quoteCoveragePercent: holdings.length ? Number((liveQuoteCount/holdings.length*100).toFixed(1)) : 0, activePacMonthlyEquivalent: Number(pacMonthly.toFixed(2)),
+      dataLimitations: "Le quotazioni sono richieste direttamente a Yahoo Finance durante questa analisi. Fresca significa timestamp entro 36 ore, non certificazione o licenza del dato; ritardata significa timestamp più vecchio. Se la richiesta fallisce si usa il costo medio registrato come valore sostitutivo e la posizione è marcata non disponibile. Non inventare overlap o composizione sottostante."
     };
     const deterministic = localInsights(holdings, total, invested, pacMonthly);
     const apiKey = process.env.OPENAI_API_KEY;
@@ -93,6 +117,7 @@ export async function POST(request: NextRequest) {
       "Sei AI Analysis di Il Mio Percorso ETF. Rispondi in italiano, con tono chiaro e prudente.",
       "Analizza esclusivamente i dati JSON forniti. Non inventare prezzi, performance, composizioni, benchmark, overlap o dati macroeconomici.",
       "Se i dati non permettono una conclusione, dichiaralo. Distingui fatti, limiti e ipotesi.",
+      "Non dichiarare copertura 100% se anche una sola posizione non ha una quotazione con timestamp. Non chiamare certificato o ufficiale il dato Yahoo Finance. Indica fonte, simbolo e orario quando disponibili; segnala prezzi ritardati o non disponibili.",
       "Non dare ordini di acquisto/vendita né raccomandazioni personalizzate di investimento. Puoi proporre controlli e domande da valutare.",
       "Fornisci: sintesi, punti di forza supportati dai dati, aspetti da monitorare, 3 azioni pratiche di verifica. Massimo 450 parole.",
       "DATI PORTAFOGLIO: " + JSON.stringify(facts),
