@@ -19,7 +19,10 @@ const errText=(e:any)=>e?.message||"Operazione non riuscita";
 export default function AdminPage(){
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[email,setEmail]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [data,setData]=useState<Dashboard|null>(null),[search,setSearch]=useState(""),[tab,setTab]=useState<"overview"|"users"|"catalog"|"premium">("overview");
- const [etf,setEtf]=useState<ETF>({isin:"",ticker:"",name:"",issuer:"",currency:"EUR",ongoing_charges:null});\n const [catalogQuery,setCatalogQuery]=useState("");\n const [catalogResults,setCatalogResults]=useState<Array<{isin:string;ticker:string;name:string;issuer?:string;currency?:string;exchange?:string}>>([]);\n const [catalogSearching,setCatalogSearching]=useState(false);
+ const [etf,setEtf]=useState<ETF>({isin:"",ticker:"",name:"",issuer:"",currency:"EUR",ongoing_charges:null});
+ const [catalogQuery,setCatalogQuery]=useState("");
+ const [catalogResults,setCatalogResults]=useState<Array<{isin:string;ticker:string;name:string;issuer?:string;currency?:string;exchange?:string}>>([]);
+ const [catalogSearching,setCatalogSearching]=useState(false);
  const [editing,setEditing]=useState(false),[premiumEnabled,setPremiumEnabled]=useState(false),[premiumLabel,setPremiumLabel]=useState("In arrivo"),[premiumDescription,setPremiumDescription]=useState("Funzioni avanzate in preparazione");
 
  const load=useCallback(async()=>{
