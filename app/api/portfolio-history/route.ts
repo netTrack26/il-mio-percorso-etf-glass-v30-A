@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const supabase = await getSessionClient();
     if (!supabase) return NextResponse.json({ error: "Accesso richiesto." }, { status: 401 });
     const body = await request.json();
-    const startDate = typeof body.startDate === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.startDate) ? body.startDate : null;
+    const startDate = typeof body.startDate === "string" && body.startDate.length === 10 && !Number.isNaN(Date.parse(body.startDate)) ? body.startDate : null;
     const positions: Position[] = Array.isArray(body.positions) ? body.positions.slice(0, 30).map((p: any) => ({ isin: String(p.isin || "").toUpperCase(), quantity: Number(p.quantity) })) : [];
     if (!positions.length || positions.some(p => !/^[A-Z]{2}[A-Z0-9]{10}$/.test(p.isin) || !Number.isFinite(p.quantity) || p.quantity <= 0)) return NextResponse.json({ error: "Le posizioni inviate non sono valide." }, { status: 400 });
     const isins = [...new Set(positions.map(p => p.isin))];
