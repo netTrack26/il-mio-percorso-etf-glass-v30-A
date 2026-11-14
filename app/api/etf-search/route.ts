@@ -74,27 +74,51 @@ export async function POST(request: NextRequest) {
   try {
     const user = await authenticatedUser();
     if (!user) return NextResponse.json({ error: "Accesso richiesto." }, { status: 401 });
-    const body = await request.json();
-    const isin = String(body.isin || "").trim().toUpperCase();
+    const body = await request.json().catch(() => null);
+    const isin = typeof body?.isin === "string" ? body.isin.trim().toUpperCase() : "";
     if (!/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) return NextResponse.json({ error: "ISIN non valido." }, { status: 400 });
 
     const response = await fetch(BASE + "/api/search?q=" + encodeURIComponent(isin), { cache: "no-store" });
-    const payload = await response.json();
+    const payload = await response.json().catch(() => null);
     if (!response.ok && !KNOWN_ETFS[isin]) return NextResponse.json({ error: payload?.error || "Verifica ETF non riuscita." }, { status: 502 });
     const found = collectObjects(payload).map(normalise).find(x => x.isin === isin) || KNOWN_ETFS[isin];
-    if (!found) return NextResponse.json({ error: "ETF non trovato nel catalogo ETF Compare." }, { status: 404 });
+    if (!found || !/^[A-Z]{2}[A-Z0-9]{10}$/.test(found.isin) || !found.ticker.trim() || !found.name.trim()) {
+      return NextResponse.json({ error: "ETF non trovato o dati identificativi incompleti nel catalogo ETF Compare." }, { status: 404 });
+    }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !serviceKey) return NextResponse.json({ error: "Manca SUPABASE_SERVICE_ROLE_KEY nelle variabili server Vercel." }, { status: 503 });
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-    const { error } = await admin.from("etfs").upsert({
-      isin: found.isin, ticker: found.ticker, name: found.name,
-      issuer: found.issuer || null, currency: found.currency || null,
-      exchange: found.exchange || null, updated_at: new Date().toISOString()
-    }, { onConflict: "isin" });
-    if (error) return NextResponse.json({ error: "Catalogo Supabase: " + error.message }, { status: 500 });
-    return NextResponse.json({ fund: found, source: "ETF Compare" });
+
+    // Never overwrite a curated catalog record with sparse external metadata.
+    const { data: existing, error: lookupError } = await admin
+      .from("etfs")
+      .select("isin,ticker,name,issuer,currency,exchange")
+      .eq("isin", isin)
+      .maybeSingle();
+    if (lookupError) return NextResponse.json({ error: "Lettura catalogo Supabase: " + lookupError.message }, { status: 500 });
+    if (existing) return NextResponse.json({ fund: existing, source: "Catalogo Supabase" });
+
+    const { data: inserted, error: insertError } = await admin
+      .from("etfs")
+      .insert({
+        isin: found.isin, ticker: found.ticker, name: found.name,
+        issuer: found.issuer || null, currency: found.currency || null,
+        exchange: found.exchange || null, updated_at: new Date().toISOString()
+      })
+      .select("isin,ticker,name,issuer,currency,exchange")
+      .single();
+    if (insertError) {
+      // Handle a concurrent insert by returning the row that won the race.
+      if (insertError.code === "23505") {
+        const { data: raced } = await admin.from("etfs")
+          .select("isin,ticker,name,issuer,currency,exchange").eq("isin", isin).maybeSingle();
+        if (raced) return NextResponse.json({ fund: raced, source: "Catalogo Supabase" });
+      }
+      return NextResponse.json({ error: "Catalogo Supabase: " + insertError.message }, { status: 500 });
+    }
+    return NextResponse.json({ fund: inserted, source: "ETF Compare" });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Errore durante il salvataggio ETF." }, { status: 503 });
   }
