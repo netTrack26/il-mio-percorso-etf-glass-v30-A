@@ -194,11 +194,16 @@ export async function POST(request: NextRequest) {
     section(doc, "Nota informativa", clean(body.disclaimer, 5000) || "Documento informativo, non costituisce consulenza finanziaria personalizzata né raccomandazione di acquisto o vendita.");
 
     // Add a page footer and page number on every buffered page.
+    // Footer sits below the content area: disable the normal bottom-margin
+    // page-break check while drawing it, otherwise PDFKit appends blank pages.
     const range = doc.bufferedPageRange();
+    const originalBottomMargin = doc.page.margins.bottom;
     for (let index = range.start; index < range.start + range.count; index++) {
       doc.switchToPage(index);
+      doc.page.margins.bottom = 0;
       doc.font("Helvetica").fontSize(7).fillColor("#7C858E")
         .text("Il Mio Percorso ETF  ·  Dati personali del portafoglio  ·  Pagina " + (index + 1) + " di " + range.count, 48, doc.page.height - 31, { width: doc.page.width - 96, align: "center", lineBreak: false });
+      doc.page.margins.bottom = originalBottomMargin;
     }
     doc.end();
     const buffer = await pdfPromise;
