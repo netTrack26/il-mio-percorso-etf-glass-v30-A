@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { fetchYahooChart } from "../../../lib/yahoo-finance";
+import { fetchYahooChart, convertQuoteToEur } from "../../../lib/yahoo-finance";
 export const runtime = "nodejs";
 async function getSessionClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -24,9 +24,11 @@ export async function POST(request: NextRequest) {
     const results = await Promise.all((instruments || []).map(async (instrument: any) => {
       try {
         const quote = await fetchYahooChart(instrument, "5d", "1d");
-        const previousClose = quote.points.length > 1 ? quote.points[quote.points.length - 2].price : quote.price;
-        const change = previousClose > 0 ? ((quote.price - previousClose) / previousClose) * 100 : 0;
-        return { isin: instrument.isin, ...quote, previousClose, change, error: null };
+        const converted = await convertQuoteToEur(quote.price, quote.currency);
+        const previousRaw = quote.points.length > 1 ? quote.points[quote.points.length - 2].price : quote.price;
+        const previousConverted = await convertQuoteToEur(previousRaw, quote.currency);
+        const change = previousConverted.priceEur > 0 ? ((converted.priceEur - previousConverted.priceEur) / previousConverted.priceEur) * 100 : 0;
+        return { isin: instrument.isin, ...quote, price: converted.priceEur, currency: "EUR", originalCurrency: converted.originalCurrency, fxRate: converted.fxRate, previousClose: previousConverted.priceEur, change, error: null };
       } catch (e) { return { isin: instrument.isin, error: e instanceof Error ? e.message : "Quotazione non disponibile." }; }
     }));
     return NextResponse.json({ quotes: results.filter(x => !x.error), errors: results.filter(x => x.error), source: "Yahoo Finance", fetchedAt: new Date().toISOString() }, { headers: { "Cache-Control": "private, max-age=60" } });
