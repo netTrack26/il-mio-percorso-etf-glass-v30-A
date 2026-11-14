@@ -48,7 +48,7 @@ export default function LegalPage() {
       <p>Questa pagina descrive la natura informativa del servizio e i limiti delle informazioni visualizzate. Leggila prima di utilizzare la piattaforma.</p>
       <div className="legal-notice"><b>Importante</b><span>Il Mio Percorso ETF è uno strumento di monitoraggio. Non offre consulenza finanziaria e non esegue operazioni di investimento.</span></div>
     </header>
-    <nav className="legal-index" aria-label="Indice delle informazioni legali">{sections.map(s=><a key={s.id} href={`#${s.id}`}>{s.title}</a>)}</nav>
+    <nav className="legal-index" aria-label="Indice delle informazioni legali">{sections.map(s=><a key={s.id} href={`#${s.id}`}>{s.title}</a>)}<Link href="/terms">Termini e condizioni</Link><Link href="/privacy">Privacy policy</Link><Link href="/cookies">Cookie policy</Link></nav>
     <div className="legal-content">{sections.map(s=><section className="legal-section" id={s.id} key={s.id}><h2>{s.title}</h2>{s.body.map((p,i)=><p key={i}>{p}</p>)}</section>)}</div>
     <section className="legal-section legal-pending">
       <h2>Documenti da completare prima della pubblicazione</h2>
