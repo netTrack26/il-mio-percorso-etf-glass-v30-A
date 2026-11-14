@@ -29,13 +29,22 @@ Configura almeno:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` — solo server, necessaria all'API di ricerca/salvataggio ETF
+- `SUPABASE_SERVICE_ROLE_KEY` — solo server, necessaria all'API di ricerca/salvataggio ETF e all'invio degli inviti Beta
+- `BETA_INVITE_CODE` — codice condiviso con il gruppo Telegram; solo server, mai usare il prefisso `NEXT_PUBLIC_`
 - `OPENAI_API_KEY` — solo server, necessaria per l'analisi AI
 
 Facoltativa:
 - `OPENAI_ANALYSIS_MODEL` — se assente viene usato il modello predefinito configurato nel codice.
 
 Non inserire mai service-role key o OpenAI API key in variabili `NEXT_PUBLIC_*`, nel browser, nel repository o in screenshot. Dopo aver impostato le variabili, esegui un nuovo deployment.
+
+### Attivazione inviti Beta
+
+- In Supabase Auth disattiva le registrazioni pubbliche (Enable Sign Ups) prima di condividere il link. Gli account Beta vengono creati dall'endpoint server `/api/beta-invite` solo dopo la verifica del codice condiviso.
+- In Supabase Auth > URL Configuration aggiungi come Redirect URL `https://TUO-DOMINIO/auth/callback` (e il dominio Preview Vercel se userai le preview).
+- Imposta `BETA_INVITE_CODE` in Vercel con il codice comunicato agli invitati e `SUPABASE_SERVICE_ROLE_KEY` come variabile server. Non inserirli nel client o nel repository.
+- Il link pubblico da condividere è `https://TUO-DOMINIO/?invite=CODICE_CONDIVISO`. Il link precompila il codice e apre la registrazione; l'utente riceve poi un'email Supabase per attivare l'account e impostare la password.
+- La chiave service role non deve mai essere condivisa. Il codice comune può essere inoltrato: non prova l'appartenenza al gruppo Telegram.
 
 ## Primo amministratore
 
