@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
     const expectedCode = process.env.BETA_INVITE_CODE?.trim();
     const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-    const supabaseUrl = rawSupabaseUrl?.replace(/\\/+$/, "");
+    const supabaseUrl = rawSupabaseUrl?.replace(/\/+$/, "");
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
     const missing: string[] = [];
     if (!expectedCode) missing.push("BETA_INVITE_CODE");
