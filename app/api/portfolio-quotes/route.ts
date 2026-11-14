@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { fetchYahooChart } from "@/lib/yahoo-finance";
+import { fetchYahooChart } from "../../../lib/yahoo-finance";
 export const runtime = "nodejs";
 async function getSessionClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
